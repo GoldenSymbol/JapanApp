@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;500;600;700&family=Zen+Old+Mincho:wght@400;600&display=swap');
+
+/* The app is RTL; Leaflet marker icons must stay LTR so their static (pre-transform) position
+   is computed the same way regardless of page text direction. See LeafletHelpers.tsx. */
+.leaflet-ltr-icon {
+  direction: ltr;
+}
+
+:root {
+  --font-main: 'Noto Sans Hebrew', system-ui, sans-serif;
+  --font-jp: 'Zen Old Mincho', serif;
+  --accent: #B23A32;
+  --accent-hover: #8E2C26;
+  --danger: #D9564B;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+}
+
+/* Dark theme (default) */
+:root,
+[data-theme='dark'] {
+  --bg: #14161A;
+  --card: #1F2328;
+  --card-soft: rgba(255, 255, 255, 0.04);
+  --card-soft-2: rgba(255, 255, 255, 0.06);
+  --text: #F6F4EF;
+  --text-dim: rgba(246, 244, 239, 0.55);
+  --text-dim-2: rgba(246, 244, 239, 0.35);
+  --text-dim-3: rgba(246, 244, 239, 0.18);
+  --border: rgba(246, 244, 239, 0.14);
+  --border-soft: rgba(246, 244, 239, 0.08);
+  --watermark: rgba(255, 255, 255, 0.05);
+  --pill-bg: rgba(255, 255, 255, 0.08);
+}
+
+/* Light palettes */
+[data-theme='light'][data-palette='paper'] {
+  --bg: #F6F4EF; --card: #FFFFFF; --card-soft: rgba(20,22,26,0.04); --card-soft-2: rgba(20,22,26,0.06);
+  --text: #201C18; --text-dim: rgba(32,28,24,0.6); --text-dim-2: rgba(32,28,24,0.4); --text-dim-3: rgba(32,28,24,0.2);
+  --border: rgba(32,28,24,0.12); --border-soft: rgba(32,28,24,0.08); --watermark: rgba(20,22,26,0.05); --pill-bg: rgba(20,22,26,0.06);
+  --accent: #B23A32; --accent-hover: #8E2C26;
+}
+[data-theme='light'][data-palette='sakura'] {
+  --bg: #FBF3F3; --card: #FFFFFF; --card-soft: rgba(60,20,25,0.04); --card-soft-2: rgba(60,20,25,0.06);
+  --text: #2A1A1C; --text-dim: rgba(42,26,28,0.6); --text-dim-2: rgba(42,26,28,0.4); --text-dim-3: rgba(42,26,28,0.2);
+  --border: rgba(42,26,28,0.12); --border-soft: rgba(42,26,28,0.08); --watermark: rgba(60,20,25,0.05); --pill-bg: rgba(60,20,25,0.06);
+  --accent: #C2405A; --accent-hover: #9C3348;
+}
+[data-theme='light'][data-palette='indigo'] {
+  --bg: #F1F3F7; --card: #FFFFFF; --card-soft: rgba(15,25,45,0.04); --card-soft-2: rgba(15,25,45,0.06);
+  --text: #171C28; --text-dim: rgba(23,28,40,0.6); --text-dim-2: rgba(23,28,40,0.4); --text-dim-3: rgba(23,28,40,0.2);
+  --border: rgba(23,28,40,0.12); --border-soft: rgba(23,28,40,0.08); --watermark: rgba(15,25,45,0.05); --pill-bg: rgba(15,25,45,0.06);
+  --accent: #2C4A8C; --accent-hover: #22396c;
+}
+[data-theme='light'][data-palette='matcha'] {
+  --bg: #F3F5EE; --card: #FFFFFF; --card-soft: rgba(20,30,10,0.04); --card-soft-2: rgba(20,30,10,0.06);
+  --text: #1B2115; --text-dim: rgba(27,33,21,0.6); --text-dim-2: rgba(27,33,21,0.4); --text-dim-3: rgba(27,33,21,0.2);
+  --border: rgba(27,33,21,0.12); --border-soft: rgba(27,33,21,0.08); --watermark: rgba(20,30,10,0.05); --pill-bg: rgba(20,30,10,0.06);
+  --accent: #4E7A38; --accent-hover: #3d602b;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-main);
+  transition: background .2s ease, color .2s ease;
+  min-height: 100dvh;
+}
+#root { min-height: 100dvh; }
+a { color: var(--accent); text-decoration: none; }
+input, button, textarea { font-family: inherit; }
+input:focus { outline: none; }
+::-webkit-scrollbar { width: 0; height: 0; }
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--bg);
+}
+
+.jp-watermark {
+  position: absolute;
+  font-family: var(--font-jp);
+  color: var(--watermark);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--pill-bg);
+  color: var(--text);
+}
+
+.btn {
+  cursor: pointer;
+  border: none;
+  border-radius: 999px;
+  font: 600 13px var(--font-main);
+  padding: 10px 16px;
+}
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; flex: none;
+  color: var(--text-dim);
+  background: transparent;
+}
+
+.card {
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-label {
+  font: 600 12px var(--font-main);
+  color: var(--text-dim);
+  letter-spacing: .6px;
+}
+
+input.field {
+  width: 100%;
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font: 400 14px var(--font-main);
+  color: var(--text);
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 13, 0.66);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+[data-theme='light'] .drawer-overlay { background: rgba(20, 20, 20, 0.4); }
+
+.drawer-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -12px 30px rgba(0,0,0,0.3);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.toast {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 448px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  z-index: 60;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
