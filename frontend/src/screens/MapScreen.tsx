@@ -8,6 +8,17 @@ import { TAGS } from './City';
 import { FitBounds, pinIcon } from '../components/LeafletHelpers';
 import { MapTiles } from '../components/MapTiles';
 
+// Straight-line ("as the crow flies") distance between two lat/lng points, in km.
+function haversineKm(a: [number, number], b: [number, number]) {
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const lat1 = (a[0] * Math.PI) / 180;
+  const lat2 = (b[0] * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export function MapScreen() {
   const { destinations } = useTripData();
   const { dark } = useTheme();
@@ -21,6 +32,19 @@ export function MapScreen() {
 
   const points = destinations.filter((d) => d.lat && d.lng).map((d) => [d.lat!, d.lng!] as [number, number]);
   const routeColor = '#D9564B';
+
+  const legs = destinations
+    .slice(0, -1)
+    .map((from, i) => ({ from, to: destinations[i + 1] }))
+    .filter(({ from, to }) => from.lat && from.lng && to.lat && to.lng);
+  const flightLegs = legs.filter(({ to }) => to.transportIn === 'flight');
+  const trainLegs = legs.filter(({ to }) => to.transportIn !== 'flight');
+  const totalKm = Math.round(
+    legs.reduce((sum, { from, to }) => sum + haversineKm([from.lat!, from.lng!], [to.lat!, to.lng!]), 0)
+  );
+  const routeSummary = flightLegs.length
+    ? `${destinations.length} יעדים לפי סדר הנסיעה. טיסות: ${flightLegs.map(({ from, to }) => `${from.nameHe} ל-${to.nameHe}`).join(', ')}.`
+    : `${destinations.length} יעדים לפי סדר הנסיעה, כולם ברכבת.`;
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 24px' }}>
@@ -63,19 +87,21 @@ export function MapScreen() {
             </MapContainer>
           </div>
           <div style={{ padding: '13px 38px 0', font: "400 11.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
-            7 יעדים לפי סדר הנסיעה. אוקינאווה מנותקת מהציר — טיסה מהאנדה וחזרה לטוקיו.
+            {routeSummary}
           </div>
           <div style={{ padding: '6px 38px 0', font: "400 10px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', opacity: 0.7 }}>
             © OpenStreetMap contributors · openfreemap.org
           </div>
           <div style={{ display: 'flex', gap: 10, padding: '16px 22px 0' }}>
             <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 16, padding: 15 }}>
-              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>1,780 ק״מ</div>
-              <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>מרחק מצטבר ביבשה</div>
+              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>{totalKm.toLocaleString('he-IL')} ק״מ</div>
+              <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>מרחק מצטבר (קו אווירי)</div>
             </div>
             <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 16, padding: 15 }}>
-              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>7 מקטעים</div>
-              <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>שינקנסן + 2 טיסות</div>
+              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>{legs.length} מקטעים</div>
+              <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>
+                {trainLegs.length} ברכבת{flightLegs.length ? ` + ${flightLegs.length} בטיסה` : ''}
+              </div>
             </div>
           </div>
         </>

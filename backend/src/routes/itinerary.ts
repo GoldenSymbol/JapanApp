@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
-import { geocodeCity } from "../geocode.js";
+import { geocodePlace } from "../geocode.js";
 
 export const itineraryRouter = Router();
 
@@ -59,7 +59,7 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
   if (!nameHe || !startDate || !endDate) return res.status(400).json({ error: "invalid_input" });
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM destinations WHERE trip_id = ?").get(trip.id) as any).m;
   const id = randomUUID();
-  const coords = await geocodeCity(nameEn || nameHe);
+  const coords = await geocodePlace(nameEn || nameHe);
   db.prepare(
     `INSERT INTO destinations (id, trip_id, order_index, name_he, name_en, name_ja, start_date, end_date, transport_in, color_key, lat, lng)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -143,7 +143,7 @@ itineraryRouter.get("/destinations/:id/attractions", requireAuth, (req: AuthedRe
   res.json({ attractions: attractionsForDestination(req.params.id, req.userId!) });
 });
 
-itineraryRouter.post("/destinations/:id/attractions", requireAuth, (req: AuthedRequest, res) => {
+itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: AuthedRequest, res) => {
   const trip = requireTrip(req, res);
   if (!trip) return;
   const dest = db.prepare("SELECT * FROM destinations WHERE id = ? AND trip_id = ?").get(req.params.id, trip.id) as any;
@@ -152,10 +152,17 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, (req: AuthedR
   if (!nameHe) return res.status(400).json({ error: "invalid_input" });
   const id = randomUUID();
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM attractions WHERE destination_id = ?").get(dest.id) as any).m;
+  let coordLat = lat ?? null;
+  let coordLng = lng ?? null;
+  if (coordLat == null || coordLng == null) {
+    const coords = await geocodePlace(nameEn || nameHe, dest.name_en || dest.name_he);
+    coordLat = coords?.lat ?? null;
+    coordLng = coords?.lng ?? null;
+  }
   db.prepare(
     `INSERT INTO attractions (id, destination_id, order_index, name_he, name_en, tag, duration, day, hour, lat, lng, note, created_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, dest.id, maxOrder + 1, nameHe, nameEn || "", tag || "attraction", duration || null, day || null, hour || null, lat ?? null, lng ?? null, note || null, req.userId);
+  ).run(id, dest.id, maxOrder + 1, nameHe, nameEn || "", tag || "attraction", duration || null, day || null, hour || null, coordLat, coordLng, note || null, req.userId);
   createNotification({
     tripId: trip.id,
     actorUserId: req.userId!,

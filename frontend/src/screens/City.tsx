@@ -38,7 +38,7 @@ export function City() {
   const city = destinations.find((d) => d.id === id);
   const [spots, setSpots] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nameHe: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
+  const [form, setForm] = useState({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
   const [showForm, setShowForm] = useState(false);
 
   async function loadSpots() {
@@ -54,7 +54,7 @@ export function City() {
   async function addSpot() {
     if (!form.nameHe.trim() || !id) return;
     await api(`/destinations/${id}/attractions`, { method: 'POST', json: { ...form, day: form.day || null, hour: form.hour || null } });
-    setForm({ nameHe: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
+    setForm({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
     setShowForm(false);
     await loadSpots();
   }
@@ -107,6 +107,7 @@ export function City() {
             ) : (
               <div className="card" style={{ background: 'var(--card-soft)' }}>
                 <input className="field" placeholder="שם האטרקציה" value={form.nameHe} onChange={(e) => setForm({ ...form, nameHe: e.target.value })} />
+                <input className="field" style={{ marginTop: 8 }} placeholder="שם באנגלית (משפר דיוק במפה) — אופציונלי" dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
                   {Object.entries(TAGS).map(([key, t]) => (
                     <div key={key} onClick={() => setForm({ ...form, tag: key })}
