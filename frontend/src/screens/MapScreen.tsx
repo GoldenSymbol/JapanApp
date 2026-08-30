@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapContainer, Marker, Polyline } from 'react-leaflet';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { MapContainer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import { api } from '../api';
 import { useTripData } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
@@ -23,11 +23,14 @@ export function MapScreen() {
   const { destinations } = useTripData();
   const { dark } = useTheme();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'country' | 'city'>('country');
-  const [cityId, setCityId] = useState<string | null>(null);
+  const location = useLocation();
+  const navState = location.state as { cityId?: string; placeAttractionId?: string } | null;
+  const [mode, setMode] = useState<'country' | 'city'>(navState?.cityId ? 'city' : 'country');
+  const [cityId, setCityId] = useState<string | null>(navState?.cityId || null);
+  const [placeAttractionId, setPlaceAttractionId] = useState<string | null>(navState?.placeAttractionId || null);
 
   useEffect(() => {
-    if (!cityId && destinations[2]) setCityId(destinations[2].id);
+    if (!cityId && destinations.length) setCityId((destinations[2] || destinations[0]).id);
   }, [destinations, cityId]);
 
   const points = destinations.filter((d) => d.lat && d.lng).map((d) => [d.lat!, d.lng!] as [number, number]);
@@ -106,23 +109,46 @@ export function MapScreen() {
           </div>
         </>
       ) : (
-        <CityMap cityId={cityId} setCityId={setCityId} dark={dark} />
+        <CityMap cityId={cityId} setCityId={setCityId} dark={dark}
+          placeAttractionId={placeAttractionId} onDonePlacing={() => setPlaceAttractionId(null)} />
       )}
     </div>
   );
 }
 
-function CityMap({ cityId, setCityId, dark }: { cityId: string | null; setCityId: (id: string) => void; dark: boolean }) {
+function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: (e) => onClick(e.latlng.lat, e.latlng.lng) });
+  return null;
+}
+
+function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: {
+  cityId: string | null; setCityId: (id: string) => void; dark: boolean;
+  placeAttractionId: string | null; onDonePlacing: () => void;
+}) {
   const { destinations } = useTripData();
   const [spots, setSpots] = useState<any[]>([]);
   const [route, setRoute] = useState<string[]>([]);
   const city = destinations.find((d) => d.id === cityId);
 
+  async function refreshSpots() {
+    if (!cityId) return;
+    const d = await api(`/destinations/${cityId}/attractions`);
+    setSpots(d.attractions);
+  }
+
   useEffect(() => {
     if (!cityId) return;
     setRoute([]);
-    api(`/destinations/${cityId}/attractions`).then((d) => setSpots(d.attractions));
+    refreshSpots();
   }, [cityId]);
+
+  const placingSpot = spots.find((s) => s.id === placeAttractionId);
+  async function placeAt(lat: number, lng: number) {
+    if (!placeAttractionId) return;
+    await api(`/attractions/${placeAttractionId}`, { method: 'PATCH', json: { lat, lng } });
+    await refreshSpots();
+    onDonePlacing();
+  }
 
   const points = useMemo(() => spots.filter((s) => s.lat && s.lng).map((s) => [s.lat, s.lng] as [number, number]), [spots]);
   const routeLine = route.map((id) => spots.find((s) => s.id === id)).filter((s) => s?.lat && s?.lng).map((s) => [s.lat, s.lng] as [number, number]);
@@ -153,11 +179,19 @@ function CityMap({ cityId, setCityId, dark }: { cityId: string | null; setCityId
           </div>
         ))}
       </div>
-      <div style={{ margin: '0 22px', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
+      {placingSpot && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, margin: '0 22px 12px', padding: '10px 14px',
+          border: '1px solid var(--accent)', borderRadius: 14, background: 'var(--card-soft)' }}>
+          <div style={{ font: "500 12.5px/1.4 'Noto Sans Hebrew',sans-serif" }}>הקש/י על המפה כדי לסמן את המיקום של <b>{placingSpot.nameHe}</b></div>
+          <div onClick={onDonePlacing} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', flex: 'none' }}>ביטול</div>
+        </div>
+      )}
+      <div style={{ margin: '0 22px', border: `1px solid ${placingSpot ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, overflow: 'hidden' }}>
         {city.lat && city.lng && (
-          <MapContainer key={cityId} center={[city.lat, city.lng]} zoom={12} style={{ height: 400, width: '100%' }} scrollWheelZoom={true} attributionControl={false}>
+          <MapContainer key={cityId} center={[city.lat, city.lng]} zoom={12} style={{ height: 400, width: '100%', cursor: placingSpot ? 'crosshair' : undefined }} scrollWheelZoom={true} attributionControl={false}>
             <MapTiles dark={dark} />
             <FitBounds points={points.length ? points : [[city.lat, city.lng]]} />
+            {placingSpot && <MapClickHandler onClick={placeAt} />}
             {routeLine.length >= 2 && <Polyline positions={routeLine} pathOptions={{ color: '#D9564B', weight: 3, opacity: 0.9 }} />}
             {spots.filter((s) => s.lat && s.lng).map((s) => {
               const orderIdx = route.indexOf(s.id);

@@ -27,6 +27,14 @@ export function GearIcon() {
   );
 }
 
+export function NavigationIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+    </svg>
+  );
+}
+
 export function TranslateIcon() {
   return (
     <span dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
+import { NavigationIcon } from '../components/Icons';
 
 export const TAGS: Record<string, { label: string; color: string }> = {
   park: { label: 'פארק', color: '#7FB069' },
@@ -28,6 +29,12 @@ function dateOptions(start: string, end: string) {
 function dayLabel(iso: string) {
   const [, m, d] = iso.split('-');
   return `${d}/${m}`;
+}
+function navigationUrl(s: any, cityNameEn?: string) {
+  const destination = s.lat && s.lng
+    ? `${s.lat},${s.lng}`
+    : encodeURIComponent([s.nameEn || s.nameHe, cityNameEn, 'Japan'].filter(Boolean).join(', '));
+  return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
 
 export function City() {
@@ -74,6 +81,9 @@ export function City() {
   async function setSpotHour(spotId: string, hour: string) {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { hour: hour || null } });
     await loadSpots();
+  }
+  function placeOnMap(spotId: string) {
+    navigate('/map', { state: { cityId: id, placeAttractionId: spotId } });
   }
 
   if (!city) return null;
@@ -169,9 +179,19 @@ export function City() {
                 {s.duration && <span className="pill">{DURATIONS.find((d) => d.key === s.duration)?.label || s.duration}</span>}
                 <span className="pill" style={{ border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{TAGS[s.tag]?.label || s.tag}</span>
                 {(s.day || s.hour) && <span dir="ltr" className="pill" style={{ border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
+                <a href={navigationUrl(s, city.nameEn)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                  className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', textDecoration: 'none' }}>
+                  <NavigationIcon /> ניווט
+                </a>
                 {s.othersStatus?.length > 0 && (
                   <span className="pill" style={{ color: 'var(--text-dim)' }}>בת/בן הזוג {s.othersStatus[0] === 'done' ? '✓' : s.othersStatus[0] === 'skipped' ? '✕' : ''}</span>
                 )}
+                {!s.lat && (
+                  <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--danger)', color: 'var(--danger)', background: 'transparent' }} onClick={() => placeOnMap(s.id)}>
+                    לא ממוקם — סמן מיקום
+                  </span>
+                )}
+                {editing && s.lat && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={() => placeOnMap(s.id)}>עדכן מיקום</span>}
                 {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={() => removeSpot(s.id)}>הסר</span>}
               </div>
               {editing && (

@@ -126,12 +126,19 @@ export function Today() {
       ) : (
         <div style={{ margin: '0 22px', border: '1px dashed var(--border)', borderRadius: 20, padding: '24px 20px', textAlign: 'center' }}>
           <div style={{ font: "600 16px 'Noto Sans Hebrew',sans-serif" }}>אין אטרקציה משובצת ליום הזה</div>
-          {dest && (
+          {dest ? (
             <>
               <div style={{ font: "400 12.5px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
                 אפשר לשבץ אטרקציה לתאריך {dayLabel(date).dm} מתוך מסך {dest.nameHe}, או לשבץ אחת מהרשימה למטה.
               </div>
               <div className="btn btn-accent" style={{ marginTop: 16, display: 'inline-block' }} onClick={() => navigate(`/city/${dest.id}`)}>פתח את {dest.nameHe}</div>
+            </>
+          ) : (
+            <>
+              <div style={{ font: "400 12.5px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
+                אין עדיין יעד מוגדר לתאריך הזה. אפשר להוסיף יעדים למסלול הטיול.
+              </div>
+              <div className="btn btn-accent" style={{ marginTop: 16, display: 'inline-block' }} onClick={() => navigate('/trip')}>עבור למסלול</div>
             </>
           )}
         </div>

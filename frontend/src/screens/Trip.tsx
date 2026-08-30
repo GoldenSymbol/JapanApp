@@ -75,6 +75,18 @@ export function Trip() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 22px' }}>
+        {destinations.length === 0 && !editing && (
+          <div style={{ border: '1px dashed var(--border)', borderRadius: 18, padding: '32px 20px', textAlign: 'center' }}>
+            <div style={{ font: "600 16px/1.4 'Noto Sans Hebrew',sans-serif" }}>עוד לא הוספת יעדים למסלול</div>
+            <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
+              התחל/י לבנות את הטיול על ידי הוספת היעד הראשון שלך.
+            </div>
+            <div className="btn btn-accent" style={{ marginTop: 16, padding: '10px 20px', display: 'inline-block' }}
+              onClick={() => { setEditing(true); openAddForm(); }}>
+              + הוסף יעד למסלול
+            </div>
+          </div>
+        )}
         {destinations.map((c) => (
           <div key={c.id} className="card" style={{ background: cityCardBg(c.colorKey, dark, palette) }}>
             <div className="jp-watermark" style={{ left: 14, top: 4, fontSize: 64 }}>{c.nameJa}</div>
