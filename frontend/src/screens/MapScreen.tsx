@@ -19,6 +19,23 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+// Real driving directions between ordered waypoints, via OSRM's free public routing API — no
+// key required. Returns null on any failure so callers can fall back to a straight line.
+async function fetchDrivingRoute(points: [number, number][]): Promise<[number, number][] | null> {
+  if (points.length < 2) return null;
+  const coordsParam = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsParam}?overview=full&geometries=geojson`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const coords = data?.routes?.[0]?.geometry?.coordinates as [number, number][] | undefined;
+    if (!coords?.length) return null;
+    return coords.map(([lng, lat]) => [lat, lng] as [number, number]);
+  } catch {
+    return null;
+  }
+}
+
 export function MapScreen() {
   const { destinations } = useTripData();
   const { dark } = useTheme();
@@ -84,7 +101,7 @@ export function MapScreen() {
               })}
               {destinations.map((d, i) => d.lat && d.lng ? (
                 <Marker key={d.id} position={[d.lat, d.lng]}
-                  icon={pinIcon({ name: d.nameHe, dotBg: '#14161A', dotBorder: '#F6F4EF', dotText: String(i + 1), size: 20, dark })}
+                  icon={pinIcon({ name: d.nameHe, dotBg: d.colorKey, dotBorder: '#F6F4EF', dotText: String(i + 1), size: 20, dark })}
                   eventHandlers={{ click: () => navigate(`/city/${d.id}`) }} />
               ) : null)}
             </MapContainer>
@@ -153,6 +170,19 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   const points = useMemo(() => spots.filter((s) => s.lat && s.lng).map((s) => [s.lat, s.lng] as [number, number]), [spots]);
   const routeLine = route.map((id) => spots.find((s) => s.id === id)).filter((s) => s?.lat && s?.lng).map((s) => [s.lat, s.lng] as [number, number]);
 
+  // The road-following version of routeLine, fetched from OSRM. Debounced so rapid taps while
+  // building the route don't fire a request per tap; falls back to the straight line on failure.
+  const [drivingRoute, setDrivingRoute] = useState<[number, number][] | null>(null);
+  useEffect(() => {
+    if (routeLine.length < 2) { setDrivingRoute(null); return; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetchDrivingRoute(routeLine).then((r) => { if (!cancelled) setDrivingRoute(r); });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(routeLine)]);
+
   function toggleRoute(id: string) {
     setRoute((r) => (r.includes(id) ? r.filter((x) => x !== id) : [...r, id]));
   }
@@ -192,7 +222,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
             <MapTiles dark={dark} />
             <FitBounds points={points.length ? points : [[city.lat, city.lng]]} />
             {placingSpot && <MapClickHandler onClick={placeAt} />}
-            {routeLine.length >= 2 && <Polyline positions={routeLine} pathOptions={{ color: '#D9564B', weight: 3, opacity: 0.9 }} />}
+            {routeLine.length >= 2 && <Polyline positions={drivingRoute || routeLine} pathOptions={{ color: '#D9564B', weight: 3, opacity: 0.9 }} />}
             {spots.filter((s) => s.lat && s.lng).map((s) => {
               const orderIdx = route.indexOf(s.id);
               const inRoute = orderIdx >= 0;

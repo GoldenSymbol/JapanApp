@@ -11,7 +11,7 @@ export interface User {
   palette: string;
   uiLang: string;
   baseCurrency: string;
-  prefs: { agentTips: boolean; weather: boolean; offlineSave: boolean; autoSync: boolean };
+  prefs: { weather: boolean; offlineSave: boolean; autoSync: boolean };
   notifPrefs: { newAttraction: boolean; newDestination: boolean; reschedule: boolean; newExpense: boolean };
 }
 export interface TripSummary { id: string; name: string; }

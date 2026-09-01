@@ -19,7 +19,6 @@ function publicUser(u: any) {
     uiLang: u.ui_lang,
     baseCurrency: u.base_currency,
     prefs: {
-      agentTips: !!u.pref_agent_tips,
       weather: !!u.pref_weather,
       offlineSave: !!u.pref_offline_save,
       autoSync: !!u.pref_auto_sync,
@@ -89,7 +88,6 @@ authRouter.patch("/me", requireAuth, (req: AuthedRequest, res) => {
     }
   }
   const prefMap: Record<string, string> = {
-    agentTips: "pref_agent_tips",
     weather: "pref_weather",
     offlineSave: "pref_offline_save",
     autoSync: "pref_auto_sync",

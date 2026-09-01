@@ -21,6 +21,8 @@ interface NotifState {
   dismissToast: () => void;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  deleteAll: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -71,8 +73,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     await refresh();
   }, [refresh]);
 
+  const deleteNotification = useCallback(async (id: string) => {
+    await api(`/notifications/${id}`, { method: 'DELETE' });
+    await refresh();
+  }, [refresh]);
+
+  const deleteAll = useCallback(async () => {
+    await api('/notifications/delete-all', { method: 'POST' });
+    await refresh();
+  }, [refresh]);
+
   return (
-    <Ctx.Provider value={{ notifications, unreadCount, toast, dismissToast: () => setToast(null), markRead, markAllRead, refresh }}>
+    <Ctx.Provider value={{ notifications, unreadCount, toast, dismissToast: () => setToast(null), markRead, markAllRead, deleteNotification, deleteAll, refresh }}>
       {children}
     </Ctx.Provider>
   );

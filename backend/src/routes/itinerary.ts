@@ -7,6 +7,10 @@ import { geocodePlace } from "../geocode.js";
 
 export const itineraryRouter = Router();
 
+// The design's per-destination card-tint palette (matches CARD_TINTS in frontend/src/state/TripDataContext.tsx).
+// New destinations cycle through it so each one gets a distinct color, same as the seeded trip.
+const DESTINATION_COLORS = ["#1F2328", "#243030", "#2A2320", "#2B2429", "#232B30", "#20272E", "#1E2C2C"];
+
 function nightsBetween(a: string, b: string) {
   const ms = new Date(b).getTime() - new Date(a).getTime();
   return Math.max(0, Math.round(ms / 86400000));
@@ -60,10 +64,11 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
   const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM destinations WHERE trip_id = ?").get(trip.id) as any).m;
   const id = randomUUID();
   const coords = await geocodePlace(nameEn || nameHe);
+  const assignedColor = colorKey || DESTINATION_COLORS[(maxOrder + 1) % DESTINATION_COLORS.length];
   db.prepare(
     `INSERT INTO destinations (id, trip_id, order_index, name_he, name_en, name_ja, start_date, end_date, transport_in, color_key, lat, lng)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, trip.id, maxOrder + 1, nameHe, nameEn || "", nameJa || "", startDate, endDate, transportIn || "train", colorKey || "stone", coords?.lat ?? null, coords?.lng ?? null);
+  ).run(id, trip.id, maxOrder + 1, nameHe, nameEn || "", nameJa || "", startDate, endDate, transportIn || "train", assignedColor, coords?.lat ?? null, coords?.lng ?? null);
   createNotification({
     tripId: trip.id,
     actorUserId: req.userId!,

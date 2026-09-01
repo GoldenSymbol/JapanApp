@@ -6,7 +6,6 @@ import { authRouter } from "./routes/auth.js";
 import { tripsRouter } from "./routes/trips.js";
 import { itineraryRouter } from "./routes/itinerary.js";
 import { budgetRouter } from "./routes/budget.js";
-import { chatRouter } from "./routes/chat.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { translateRouter } from "./routes/translate.js";
 import { runSeed } from "./seed.js";
@@ -20,7 +19,6 @@ app.use("/api/auth", authRouter);
 app.use("/api/trips", tripsRouter);
 app.use("/api", itineraryRouter);
 app.use("/api/budget", budgetRouter);
-app.use("/api/chat", chatRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/translate", translateRouter);
 
@@ -29,7 +27,4 @@ runSeed();
 const port = Number(process.env.PORT || 4000);
 app.listen(port, () => {
   console.log(`Japan Trip 2027 API listening on http://localhost:${port}`);
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.log("Note: ANTHROPIC_API_KEY not set — chat will reply with a placeholder message.");
-  }
 });

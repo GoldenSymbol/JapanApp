@@ -5,7 +5,6 @@ const TABS = [
   { path: '/map', label: 'מפה' },
   { path: '/today', label: 'היום' },
   { path: '/budget', label: 'תקציב' },
-  { path: '/chat', label: 'צ׳אט' },
 ];
 
 export function BottomNav() {

@@ -12,7 +12,6 @@ const PALETTES = [
   { key: 'matcha', label: 'מאצ׳ה', swatches: ['#F3F5EE', '#FFFFFF', '#4E7A38'] },
 ];
 const PREF_ROWS = [
-  { key: 'agentTips', label: 'טיפים של הסוכן', note: 'הצעות יזומות לפי מיקום ושעה' },
   { key: 'weather', label: 'מזג אוויר במסך היום', note: 'טמפרטורה ותחזית ליד האטרקציה הבאה' },
   { key: 'offlineSave', label: 'שמירה לגלישה ללא רשת', note: 'מסלול, מפות ואטרקציות זמינים גם בלי אינטרנט' },
   { key: 'autoSync', label: 'סנכרון אוטומטי', note: 'שינויים של משתתפים מתעדכנים מיד' },

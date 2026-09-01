@@ -13,7 +13,6 @@ import { City } from './screens/City';
 import { MapScreen } from './screens/MapScreen';
 import { Today } from './screens/Today';
 import { Budget } from './screens/Budget';
-import { Chat } from './screens/Chat';
 import { Settings } from './screens/Settings';
 import { Members } from './screens/Members';
 
@@ -64,7 +63,6 @@ export default function App() {
         <Route path="/map" element={<MapScreen />} />
         <Route path="/today" element={<Today />} />
         <Route path="/budget" element={<Budget />} />
-        <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/members" element={<Members />} />
       </Route>

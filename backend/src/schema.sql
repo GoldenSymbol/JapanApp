@@ -94,6 +94,34 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Personal budgets: fully separate per-member spending, private to each member. Other
+-- members can see only the aggregate total/paid (via /budget/personal/members), never
+-- the category or transaction detail.
+CREATE TABLE IF NOT EXISTS personal_budgets (
+  trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  planned_total REAL NOT NULL DEFAULT 0,
+  PRIMARY KEY (trip_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS personal_budget_categories (
+  id TEXT PRIMARY KEY,
+  trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  name TEXT NOT NULL,
+  planned_amount REAL NOT NULL DEFAULT 0,
+  note TEXT
+);
+
+CREATE TABLE IF NOT EXISTS personal_budget_transactions (
+  id TEXT PRIMARY KEY,
+  category_id TEXT NOT NULL REFERENCES personal_budget_categories(id) ON DELETE CASCADE,
+  amount REAL NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS chat_messages (
   id TEXT PRIMARY KEY,
   trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
@@ -117,6 +145,14 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE TABLE IF NOT EXISTS notification_reads (
+  notification_id TEXT NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (notification_id, user_id)
+);
+
+-- Per-user notification dismissal: deleting a notification only hides it for that member,
+-- since notifications are shared across the whole trip.
+CREATE TABLE IF NOT EXISTS notification_deletes (
   notification_id TEXT NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (notification_id, user_id)

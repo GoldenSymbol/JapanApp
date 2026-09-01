@@ -207,12 +207,6 @@ export function City() {
           </div>
         ))}
       </div>
-
-      <div className="card" style={{ margin: '26px 22px 0', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' }} onClick={() => navigate('/chat')}>
-        <div style={{ font: "600 14px/1.3 'Noto Sans Hebrew',sans-serif" }}>לשאול את הסוכן על {city.nameHe}</div>
-        <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 6 }}>מסעדות בסביבה, זמני רכבות, מה לדחוס ליום אחד</div>
-        <div className="btn btn-accent" style={{ marginTop: 14, textAlign: 'center' }}>פתח שיחה</div>
-      </div>
     </div>
   );
 }

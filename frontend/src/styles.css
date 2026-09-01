@@ -172,6 +172,19 @@ input.field {
   flex-direction: column;
 }
 
+.drawer-overlay-top { align-items: flex-start; }
+
+.drawer-sheet-top {
+  border-radius: 0 0 26px 26px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+  animation: drawer-slide-down .22s ease-out;
+}
+
+@keyframes drawer-slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
 .toast {
   position: fixed;
   top: 12px;

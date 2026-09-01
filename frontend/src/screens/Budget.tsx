@@ -72,38 +72,37 @@ function Converter() {
   );
 }
 
-export function Budget() {
+// Shared UI for both the group budget (basePath="/budget") and each member's own private
+// personal budget (basePath="/budget/personal") — same shape of data, same interactions.
+function BudgetSection({ basePath, title, subtitle, newCategoryLabel }: { basePath: string; title: string; subtitle?: string; newCategoryLabel: string }) {
   const [data, setData] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
 
-  async function load() { setData(await api('/budget')); }
-  useEffect(() => { load(); }, []);
+  async function load() { setData(await api(basePath)); }
+  useEffect(() => { load(); }, [basePath]);
 
-  async function setTotal(v: number) { await api('/budget', { method: 'PATCH', json: { total: v } }); await load(); }
-  async function renameCat(id: string, name: string) { await api(`/budget/categories/${id}`, { method: 'PATCH', json: { name } }); await load(); }
-  async function deleteCat(id: string) { await api(`/budget/categories/${id}`, { method: 'DELETE' }); await load(); }
-  async function addCategory() { await api('/budget/categories', { method: 'POST', json: { name: 'קטגוריה חדשה', planned: 0 } }); await load(); }
+  async function setTotal(v: number) { await api(basePath, { method: 'PATCH', json: { total: v } }); await load(); }
+  async function renameCat(id: string, name: string) { await api(`${basePath}/categories/${id}`, { method: 'PATCH', json: { name } }); await load(); }
+  async function deleteCat(id: string) { await api(`${basePath}/categories/${id}`, { method: 'DELETE' }); await load(); }
+  async function addCategory() { await api(`${basePath}/categories`, { method: 'POST', json: { name: newCategoryLabel, planned: 0 } }); await load(); }
   async function applyTx(id: string, direction: 'add' | 'subtract') {
     const amount = parseFloat(addVals[id] || '0');
     if (!amount) return;
-    await api(`/budget/categories/${id}/transactions`, { method: 'POST', json: { amount, direction } });
+    await api(`${basePath}/categories/${id}/transactions`, { method: 'POST', json: { amount, direction } });
     setAddVals((v) => ({ ...v, [id]: '' }));
     await load();
   }
 
   if (!data) return null;
-  const perDay = Math.round(data.total / 32);
   const paidPct = data.total > 0 ? Math.min(100, Math.round((data.paid / data.total) * 100)) : 0;
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 22px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '12px 0 20px' }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0 14px' }}>
         <div>
-          <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>תקציב</div>
-          <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 7 }}>
-            מתוכנן ₪{data.total.toLocaleString('en-US')} · 32 ימים · ₪{perDay.toLocaleString('en-US')} ליום
-          </div>
+          <div style={{ font: "600 20px/1.2 'Noto Sans Hebrew',sans-serif" }}>{title}</div>
+          {subtitle && <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{subtitle}</div>}
         </div>
         <div className="pill" onClick={() => setEditing((v) => !v)} style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
           {editing ? 'סיום' : 'עריכה'}
@@ -136,9 +135,7 @@ export function Budget() {
         )}
       </div>
 
-      <Converter />
-
-      <div className="section-label" style={{ padding: '26px 0 10px' }}>לפי קטגוריה</div>
+      <div className="section-label" style={{ padding: '20px 0 10px' }}>לפי קטגוריה</div>
       {data.categories.map((c: any) => {
         const pct = data.total > 0 ? Math.min(100, Math.round((c.spent / data.total) * 100)) : 0;
         return (
@@ -185,6 +182,36 @@ export function Budget() {
           + הוסף קטגוריה
         </div>
       )}
+    </div>
+  );
+}
+
+export function Budget() {
+  const [mode, setMode] = useState<'general' | 'personal'>('general');
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 22px 24px' }}>
+      <div style={{ padding: '12px 0 20px' }}>
+        <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>תקציב</div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, margin: '0 0 20px', background: 'var(--card-soft)', border: '1px solid var(--border)', borderRadius: 14, padding: 4 }}>
+        {(['general', 'personal'] as const).map((m) => (
+          <div key={m} onClick={() => setMode(m)}
+            style={{ flex: 1, textAlign: 'center', borderRadius: 11, padding: '9px 8px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+              background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-dim)' }}>
+            {m === 'general' ? 'תקציב כללי' : 'תקציב אישי'}
+          </div>
+        ))}
+      </div>
+
+      {mode === 'general' ? (
+        <BudgetSection basePath="/budget" title="תקציב כללי" subtitle="כל ההוצאות של הקבוצה יחד" newCategoryLabel="קטגוריה חדשה" />
+      ) : (
+        <BudgetSection basePath="/budget/personal" title="התקציב האישי שלי" newCategoryLabel="הוצאה אישית חדשה" />
+      )}
+
+      <Converter />
     </div>
   );
 }
