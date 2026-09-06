@@ -310,7 +310,7 @@ export function Budget() {
       {mode === 'general' ? (
         <BudgetSection basePath="/budget" title="תקציב כללי" subtitle="כל ההוצאות של הקבוצה יחד" newCategoryLabel="קטגוריה חדשה" allowChart />
       ) : (
-        <BudgetSection basePath="/budget/personal" title="התקציב האישי שלי" newCategoryLabel="הוצאה אישית חדשה" />
+        <BudgetSection basePath="/budget/personal" title="התקציב האישי שלי" newCategoryLabel="הוצאה אישית חדשה" allowChart />
       )}
 
       <Converter />
