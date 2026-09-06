@@ -149,7 +149,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
   const [data, setData] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
-  const [view, setView] = useState<'list' | 'chart'>('list');
+  const [view, setView] = useState<'list' | 'chart'>('chart');
   const [totalDraft, setTotalDraft] = useState('');
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
 
