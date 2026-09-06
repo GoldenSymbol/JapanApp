@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
-import { db } from "../db.js";
+import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
 import { geocodePlace } from "../geocode.js";
@@ -16,29 +16,46 @@ function nightsBetween(a: string, b: string) {
   return Math.max(0, Math.round(ms / 86400000));
 }
 
-function destinationsForTrip(tripId: string) {
-  const rows = db
-    .prepare(`SELECT * FROM destinations WHERE trip_id = ? ORDER BY order_index ASC`)
-    .all(tripId) as any[];
-  return rows.map((d) => {
-    const count = (db.prepare("SELECT COUNT(*) c FROM attractions WHERE destination_id = ?").get(d.id) as any).c;
-    return {
-      id: d.id,
-      order: d.order_index,
-      nameHe: d.name_he,
-      nameEn: d.name_en,
-      nameJa: d.name_ja,
-      startDate: d.start_date,
-      endDate: d.end_date,
-      transportIn: d.transport_in,
-      colorKey: d.color_key,
-      lat: d.lat,
-      lng: d.lng,
-      teaser: d.teaser,
-      nights: nightsBetween(d.start_date, d.end_date),
-      attractionCount: count,
-    };
-  });
+function tripRef(tripId: string) {
+  return adminDb.collection("trips").doc(tripId);
+}
+
+// Firestore has no cheap cross-collection COUNT, and this app's trips are small (a handful of
+// destinations, a few attractions each) — fetching everything once and working in memory avoids
+// needing any composite indexes at all, which matters since we don't want the user to have to
+// manage Firestore index config for this app to work.
+async function fetchDestinations(tripId: string) {
+  const snap = await tripRef(tripId).collection("destinations").get();
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() } as any))
+    .sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+async function fetchAttractions(tripId: string) {
+  const snap = await tripRef(tripId).collection("attractions").get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
+}
+
+async function destinationsForTrip(tripId: string) {
+  const [dests, attrs] = await Promise.all([fetchDestinations(tripId), fetchAttractions(tripId)]);
+  const counts = new Map<string, number>();
+  for (const a of attrs) counts.set(a.destinationId, (counts.get(a.destinationId) || 0) + 1);
+  return dests.map((d) => ({
+    id: d.id,
+    order: d.orderIndex,
+    nameHe: d.nameHe,
+    nameEn: d.nameEn,
+    nameJa: d.nameJa,
+    startDate: d.startDate,
+    endDate: d.endDate,
+    transportIn: d.transportIn,
+    colorKey: d.colorKey,
+    lat: d.lat,
+    lng: d.lng,
+    teaser: d.teaser,
+    nights: nightsBetween(d.startDate, d.endDate),
+    attractionCount: counts.get(d.id) || 0,
+  }));
 }
 
 async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
@@ -53,7 +70,7 @@ async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
 itineraryRouter.get("/destinations", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  res.json({ destinations: destinationsForTrip(trip.id) });
+  res.json({ destinations: await destinationsForTrip(trip.id) });
 });
 
 itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, res) => {
@@ -61,14 +78,23 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
   if (!trip) return;
   const { nameHe, nameEn, nameJa, startDate, endDate, colorKey, transportIn } = req.body || {};
   if (!nameHe || !startDate || !endDate) return res.status(400).json({ error: "invalid_input" });
-  const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM destinations WHERE trip_id = ?").get(trip.id) as any).m;
-  const id = randomUUID();
+  const existing = await fetchDestinations(trip.id);
+  const maxOrder = existing.reduce((m, d) => Math.max(m, d.orderIndex), -1);
   const coords = await geocodePlace(nameEn || nameHe);
   const assignedColor = colorKey || DESTINATION_COLORS[(maxOrder + 1) % DESTINATION_COLORS.length];
-  db.prepare(
-    `INSERT INTO destinations (id, trip_id, order_index, name_he, name_en, name_ja, start_date, end_date, transport_in, color_key, lat, lng)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, trip.id, maxOrder + 1, nameHe, nameEn || "", nameJa || "", startDate, endDate, transportIn || "train", assignedColor, coords?.lat ?? null, coords?.lng ?? null);
+  await tripRef(trip.id).collection("destinations").doc(randomUUID()).set({
+    orderIndex: maxOrder + 1,
+    nameHe,
+    nameEn: nameEn || "",
+    nameJa: nameJa || "",
+    startDate,
+    endDate,
+    transportIn: transportIn || "train",
+    colorKey: assignedColor,
+    lat: coords?.lat ?? null,
+    lng: coords?.lng ?? null,
+    teaser: null,
+  });
   createNotification({
     tripId: trip.id,
     actorUserId: req.userId!,
@@ -76,185 +102,195 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
     title: `יעד חדש נוסף למסלול: ${nameHe}`,
     targetScreen: "trip",
   });
-  res.json({ destinations: destinationsForTrip(trip.id) });
+  res.json({ destinations: await destinationsForTrip(trip.id) });
 });
 
 itineraryRouter.patch("/destinations/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const allowed: Record<string, string> = { nameHe: "name_he", nameEn: "name_en", startDate: "start_date", endDate: "end_date" };
-  const sets: string[] = [];
-  const vals: any[] = [];
-  for (const [k, col] of Object.entries(allowed)) {
-    if (k in (req.body || {})) {
-      sets.push(`${col} = ?`);
-      vals.push(req.body[k]);
-    }
+  const id = String(req.params.id);
+  const allowed: Record<string, string> = { nameHe: "nameHe", nameEn: "nameEn", startDate: "startDate", endDate: "endDate" };
+  const patch: Record<string, any> = {};
+  for (const [k, field] of Object.entries(allowed)) {
+    if (k in (req.body || {})) patch[field] = req.body[k];
   }
-  if (sets.length) {
-    vals.push(req.params.id, trip.id);
-    db.prepare(`UPDATE destinations SET ${sets.join(", ")} WHERE id = ? AND trip_id = ?`).run(...vals);
+  if (Object.keys(patch).length) {
+    await tripRef(trip.id).collection("destinations").doc(id).update(patch);
   }
-  res.json({ destinations: destinationsForTrip(trip.id) });
+  res.json({ destinations: await destinationsForTrip(trip.id) });
 });
 
 itineraryRouter.delete("/destinations/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  db.prepare("DELETE FROM destinations WHERE id = ? AND trip_id = ?").run(req.params.id, trip.id);
-  res.json({ destinations: destinationsForTrip(trip.id) });
+  const id = String(req.params.id);
+  const attrs = await tripRef(trip.id).collection("attractions").where("destinationId", "==", id).get();
+  await Promise.all(attrs.docs.map((doc) => adminDb.recursiveDelete(doc.ref)));
+  await adminDb.recursiveDelete(tripRef(trip.id).collection("destinations").doc(id));
+  res.json({ destinations: await destinationsForTrip(trip.id) });
 });
 
 itineraryRouter.post("/destinations/:id/move", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
   const dir = req.body?.direction === "up" ? -1 : 1;
-  const list = db.prepare("SELECT id, order_index FROM destinations WHERE trip_id = ? ORDER BY order_index ASC").all(trip.id) as any[];
+  const list = await fetchDestinations(trip.id);
   const idx = list.findIndex((d) => d.id === req.params.id);
   const swapIdx = idx + dir;
-  if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return res.json({ destinations: destinationsForTrip(trip.id) });
-  const a = list[idx], b = list[swapIdx];
-  db.prepare("UPDATE destinations SET order_index = ? WHERE id = ?").run(b.order_index, a.id);
-  db.prepare("UPDATE destinations SET order_index = ? WHERE id = ?").run(a.order_index, b.id);
-  res.json({ destinations: destinationsForTrip(trip.id) });
+  if (idx !== -1 && swapIdx >= 0 && swapIdx < list.length) {
+    const a = list[idx], b = list[swapIdx];
+    const destCol = tripRef(trip.id).collection("destinations");
+    const batch = adminDb.batch();
+    batch.update(destCol.doc(a.id), { orderIndex: b.orderIndex });
+    batch.update(destCol.doc(b.id), { orderIndex: a.orderIndex });
+    await batch.commit();
+  }
+  res.json({ destinations: await destinationsForTrip(trip.id) });
 });
 
-function attractionsForDestination(destId: string, userId: string) {
-  const rows = db
-    .prepare(`SELECT * FROM attractions WHERE destination_id = ? ORDER BY order_index ASC, created_at ASC`)
-    .all(destId) as any[];
-  return rows.map((a) => {
-    const marks = db.prepare("SELECT user_id, status FROM attraction_marks WHERE attraction_id = ?").all(a.id) as any[];
-    const mine = marks.find((m) => m.user_id === userId);
-    const others = marks.filter((m) => m.user_id !== userId);
-    return {
-      id: a.id,
-      nameHe: a.name_he,
-      nameEn: a.name_en,
-      tag: a.tag,
-      duration: a.duration,
-      day: a.day,
-      hour: a.hour,
-      note: a.note,
-      lat: a.lat,
-      lng: a.lng,
-      myStatus: mine?.status || "none",
-      othersStatus: others.map((o) => o.status),
-    };
-  });
+async function attractionsForDestination(tripId: string, destId: string, userId: string) {
+  const snap = await tripRef(tripId).collection("attractions").where("destinationId", "==", destId).get();
+  const rows = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() } as any))
+    .sort((a, b) => a.orderIndex - b.orderIndex || (a.createdAtMs || 0) - (b.createdAtMs || 0));
+  return Promise.all(
+    rows.map(async (a) => {
+      const marksSnap = await tripRef(tripId).collection("attractions").doc(a.id).collection("marks").get();
+      const marks = marksSnap.docs.map((d) => ({ userId: d.id, status: d.data().status }));
+      const mine = marks.find((m) => m.userId === userId);
+      const others = marks.filter((m) => m.userId !== userId);
+      return {
+        id: a.id,
+        nameHe: a.nameHe,
+        nameEn: a.nameEn,
+        tag: a.tag,
+        duration: a.duration,
+        day: a.day,
+        hour: a.hour,
+        note: a.note,
+        lat: a.lat,
+        lng: a.lng,
+        myStatus: mine?.status || "none",
+        othersStatus: others.map((o) => o.status),
+      };
+    })
+  );
 }
 
-itineraryRouter.get("/destinations/:id/attractions", requireAuth, (req: AuthedRequest, res) => {
-  res.json({ attractions: attractionsForDestination(req.params.id, req.userId!) });
+itineraryRouter.get("/destinations/:id/attractions", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  res.json({ attractions: await attractionsForDestination(trip.id, String(req.params.id), req.userId!) });
 });
 
 itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const dest = db.prepare("SELECT * FROM destinations WHERE id = ? AND trip_id = ?").get(req.params.id, trip.id) as any;
-  if (!dest) return res.status(404).json({ error: "not_found" });
+  const id = String(req.params.id);
+  const destDoc = await tripRef(trip.id).collection("destinations").doc(id).get();
+  if (!destDoc.exists) return res.status(404).json({ error: "not_found" });
+  const dest = destDoc.data()!;
   const { nameHe, nameEn, tag, duration, day, hour, lat, lng, note } = req.body || {};
   if (!nameHe) return res.status(400).json({ error: "invalid_input" });
-  const id = randomUUID();
-  const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM attractions WHERE destination_id = ?").get(dest.id) as any).m;
+  const existing = await tripRef(trip.id).collection("attractions").where("destinationId", "==", id).get();
+  const maxOrder = existing.docs.reduce((m, d) => Math.max(m, d.data().orderIndex ?? -1), -1);
   let coordLat = lat ?? null;
   let coordLng = lng ?? null;
   if (coordLat == null || coordLng == null) {
-    const coords = await geocodePlace(nameEn || nameHe, dest.name_en || dest.name_he);
+    const coords = await geocodePlace(nameEn || nameHe, dest.nameEn || dest.nameHe);
     coordLat = coords?.lat ?? null;
     coordLng = coords?.lng ?? null;
   }
-  db.prepare(
-    `INSERT INTO attractions (id, destination_id, order_index, name_he, name_en, tag, duration, day, hour, lat, lng, note, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, dest.id, maxOrder + 1, nameHe, nameEn || "", tag || "attraction", duration || null, day || null, hour || null, coordLat, coordLng, note || null, req.userId);
+  await tripRef(trip.id).collection("attractions").doc(randomUUID()).set({
+    destinationId: id,
+    orderIndex: maxOrder + 1,
+    nameHe,
+    nameEn: nameEn || "",
+    tag: tag || "attraction",
+    duration: duration || null,
+    day: day || null,
+    hour: hour || null,
+    lat: coordLat,
+    lng: coordLng,
+    note: note || null,
+    createdBy: req.userId,
+    createdAtMs: Date.now(),
+  });
   createNotification({
     tripId: trip.id,
     actorUserId: req.userId!,
     type: "new_attraction",
-    title: `אטרקציה חדשה ב${dest.name_he}: ${nameHe}`,
+    title: `אטרקציה חדשה ב${dest.nameHe}: ${nameHe}`,
     targetScreen: "city",
-    targetId: dest.id,
+    targetId: id,
   });
-  res.json({ attractions: attractionsForDestination(dest.id, req.userId!) });
+  res.json({ attractions: await attractionsForDestination(trip.id, id, req.userId!) });
 });
 
 itineraryRouter.patch("/attractions/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const a = db
-    .prepare(`SELECT a.*, d.trip_id, d.name_he as dest_name FROM attractions a JOIN destinations d ON d.id = a.destination_id WHERE a.id = ?`)
-    .get(req.params.id) as any;
-  if (!a || a.trip_id !== trip.id) return res.status(404).json({ error: "not_found" });
+  const attrRef = tripRef(trip.id).collection("attractions").doc(String(req.params.id));
+  const doc = await attrRef.get();
+  if (!doc.exists) return res.status(404).json({ error: "not_found" });
+  const a = doc.data()!;
   const allowed: Record<string, string> = {
-    nameHe: "name_he",
-    nameEn: "name_en",
-    tag: "tag",
-    duration: "duration",
-    day: "day",
-    hour: "hour",
-    note: "note",
-    lat: "lat",
-    lng: "lng",
+    nameHe: "nameHe", nameEn: "nameEn", tag: "tag", duration: "duration",
+    day: "day", hour: "hour", note: "note", lat: "lat", lng: "lng",
   };
-  const sets: string[] = [];
-  const vals: any[] = [];
+  const patch: Record<string, any> = {};
   const rescheduling = "day" in (req.body || {});
-  for (const [k, col] of Object.entries(allowed)) {
-    if (k in (req.body || {})) {
-      sets.push(`${col} = ?`);
-      vals.push(req.body[k]);
-    }
+  for (const [k, field] of Object.entries(allowed)) {
+    if (k in (req.body || {})) patch[field] = req.body[k];
   }
-  if (sets.length) {
-    vals.push(req.params.id);
-    db.prepare(`UPDATE attractions SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
-  }
+  if (Object.keys(patch).length) await attrRef.update(patch);
   if (rescheduling) {
     createNotification({
       tripId: trip.id,
       actorUserId: req.userId!,
       type: "reschedule",
-      title: `${a.name_he} עברה ל${req.body.day ? "יום " + req.body.day : "ללא תאריך"}`,
+      title: `${a.nameHe} עברה ל${req.body.day ? "יום " + req.body.day : "ללא תאריך"}`,
       targetScreen: "today",
     });
   }
-  res.json({ attractions: attractionsForDestination(a.destination_id, req.userId!) });
+  res.json({ attractions: await attractionsForDestination(trip.id, a.destinationId, req.userId!) });
 });
 
-itineraryRouter.delete("/attractions/:id", requireAuth, (req: AuthedRequest, res) => {
-  const a = db.prepare("SELECT * FROM attractions WHERE id = ?").get(req.params.id) as any;
-  if (!a) return res.json({ ok: true });
-  db.prepare("DELETE FROM attractions WHERE id = ?").run(req.params.id);
-  res.json({ attractions: attractionsForDestination(a.destination_id, req.userId!) });
+itineraryRouter.delete("/attractions/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const attrRef = tripRef(trip.id).collection("attractions").doc(String(req.params.id));
+  const doc = await attrRef.get();
+  if (!doc.exists) return res.json({ ok: true });
+  const destId = doc.data()!.destinationId;
+  await adminDb.recursiveDelete(attrRef);
+  res.json({ attractions: await attractionsForDestination(trip.id, destId, req.userId!) });
 });
 
-itineraryRouter.post("/attractions/:id/mark", requireAuth, (req: AuthedRequest, res) => {
+itineraryRouter.post("/attractions/:id/mark", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
   const status = req.body?.status || "none";
-  const a = db.prepare("SELECT * FROM attractions WHERE id = ?").get(req.params.id) as any;
-  if (!a) return res.status(404).json({ error: "not_found" });
-  db.prepare(
-    `INSERT INTO attraction_marks (attraction_id, user_id, status) VALUES (?, ?, ?)
-     ON CONFLICT(attraction_id, user_id) DO UPDATE SET status = excluded.status`
-  ).run(req.params.id, req.userId, status);
-  res.json({ attractions: attractionsForDestination(a.destination_id, req.userId!) });
+  const attrRef = tripRef(trip.id).collection("attractions").doc(String(req.params.id));
+  const doc = await attrRef.get();
+  if (!doc.exists) return res.status(404).json({ error: "not_found" });
+  await attrRef.collection("marks").doc(req.userId!).set({ status });
+  res.json({ attractions: await attractionsForDestination(trip.id, doc.data()!.destinationId, req.userId!) });
 });
 
 itineraryRouter.get("/today", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
   const date = String(req.query.date || new Date().toISOString().slice(0, 10));
-  const dest = db
-    .prepare(`SELECT * FROM destinations WHERE trip_id = ? AND start_date <= ? AND end_date >= ? ORDER BY order_index ASC LIMIT 1`)
-    .get(trip.id, date, date) as any;
+  const allDest = await fetchDestinations(trip.id);
+  const dest = allDest.find((d) => d.startDate <= date && d.endDate >= date) || null;
 
-  const allDest = db.prepare("SELECT id, name_he, start_date, end_date FROM destinations WHERE trip_id = ? ORDER BY order_index ASC").all(trip.id) as any[];
   const days: { date: string; destinationId: string; cityHe: string }[] = [];
   for (const d of allDest) {
-    let cur = new Date(d.start_date);
-    const end = new Date(d.end_date);
+    let cur = new Date(d.startDate);
+    const end = new Date(d.endDate);
     while (cur <= end) {
-      days.push({ date: cur.toISOString().slice(0, 10), destinationId: d.id, cityHe: d.name_he });
+      days.push({ date: cur.toISOString().slice(0, 10), destinationId: d.id, cityHe: d.nameHe });
       cur.setDate(cur.getDate() + 1);
     }
   }
@@ -262,33 +298,34 @@ itineraryRouter.get("/today", requireAuth, async (req: AuthedRequest, res) => {
   let scheduled: any[] = [];
   let unscheduled: any[] = [];
   if (dest) {
-    scheduled = db
-      .prepare(`SELECT * FROM attractions WHERE destination_id = ? AND day = ? ORDER BY hour ASC, order_index ASC`)
-      .all(dest.id, date) as any[];
-    unscheduled = db
-      .prepare(`SELECT * FROM attractions WHERE destination_id = ? AND (day IS NULL OR day = '') ORDER BY order_index ASC`)
-      .all(dest.id) as any[];
+    const attrsSnap = await tripRef(trip.id).collection("attractions").where("destinationId", "==", dest.id).get();
+    const attrs = attrsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
+    scheduled = attrs
+      .filter((a) => a.day === date)
+      .sort((a, b) => (a.hour || "").localeCompare(b.hour || "") || a.orderIndex - b.orderIndex);
+    unscheduled = attrs
+      .filter((a) => !a.day)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
   }
-  const mapAttr = (a: any) => {
-    const marks = db.prepare("SELECT user_id, status FROM attraction_marks WHERE attraction_id = ?").all(a.id) as any[];
-    const mine = marks.find((m) => m.user_id === req.userId);
+  const mapAttr = async (a: any) => {
+    const marksSnap = await tripRef(trip.id).collection("attractions").doc(a.id).collection("marks").doc(req.userId!).get();
     return {
       id: a.id,
-      nameHe: a.name_he,
+      nameHe: a.nameHe,
       tag: a.tag,
       duration: a.duration,
       day: a.day,
       hour: a.hour,
       note: a.note,
-      myStatus: mine?.status || "none",
+      myStatus: marksSnap.exists ? marksSnap.data()!.status : "none",
     };
   };
 
   res.json({
     date,
-    destination: dest ? { id: dest.id, nameHe: dest.name_he, startDate: dest.start_date, endDate: dest.end_date } : null,
+    destination: dest ? { id: dest.id, nameHe: dest.nameHe, startDate: dest.startDate, endDate: dest.endDate } : null,
     days,
-    scheduled: scheduled.map(mapAttr),
-    unscheduled: unscheduled.map(mapAttr),
+    scheduled: await Promise.all(scheduled.map(mapAttr)),
+    unscheduled: await Promise.all(unscheduled.map(mapAttr)),
   });
 });
