@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
@@ -24,23 +24,32 @@ export function Today() {
   const { destinations, loading: destLoading } = useTripData();
   const { dark, palette } = useTheme();
   const navigate = useNavigate();
-  const [data, setData] = useState<any>(null);
   const [date, setDate] = useState<string | null>(null);
+  const [attractions, setAttractions] = useState<any[] | null>(null);
   const [moving, setMoving] = useState<any>(null);
   const railRef = useRef<HTMLDivElement>(null);
   const latestReq = useRef(0);
   const initialized = useRef(false);
 
-  async function load(d: string) {
-    const reqId = ++latestReq.current;
-    const res = await api(`/today?date=${d}`);
-    if (reqId !== latestReq.current) return; // a newer request already superseded this one
-    setData(res);
-  }
+  // The full day-by-day rail across the whole trip and "which destination is active for this
+  // date" are both derivable from destinations we already have via TripDataContext — no server
+  // round-trip needed for either.
+  const days = useMemo(() => {
+    const out: { date: string; destinationId: string; cityHe: string }[] = [];
+    for (const d of destinations) {
+      let cur = new Date(d.startDate);
+      const end = new Date(d.endDate);
+      while (cur <= end) {
+        out.push({ date: cur.toISOString().slice(0, 10), destinationId: d.id, cityHe: d.nameHe });
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return out;
+  }, [destinations]);
 
-  // Figure out which date to show using the destinations we already have from
-  // TripDataContext (shared app-wide, no extra fetch) instead of asking the server —
-  // that used to cost a whole extra request/response round-trip before any content showed.
+  const dest = date ? destinations.find((d) => d.startDate <= date && d.endDate >= date) : undefined;
+
+  // Resolve which date to show, once, the first time destinations are ready.
   useEffect(() => {
     if (destLoading || initialized.current) return;
     initialized.current = true;
@@ -49,7 +58,19 @@ export function Today() {
     setDate(active ? todayIso : destinations[0]?.startDate || todayIso);
   }, [destLoading, destinations]);
 
-  useEffect(() => { if (date) load(date); }, [date]);
+  // Fetch attractions only when the active destination actually changes — switching between
+  // days within the same city re-filters in memory below, with no extra request at all.
+  async function refreshAttractions(destId: string) {
+    const reqId = ++latestReq.current;
+    const res = await api(`/destinations/${destId}/attractions`);
+    if (reqId !== latestReq.current) return;
+    setAttractions(res.attractions);
+  }
+  useEffect(() => {
+    if (dest) refreshAttractions(dest.id);
+    else setAttractions([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dest?.id]);
 
   useEffect(() => {
     if (!railRef.current || !date) return;
@@ -58,22 +79,22 @@ export function Today() {
       const rail = railRef.current;
       rail.scrollLeft = chip.offsetLeft - rail.clientWidth / 2 + chip.clientWidth / 2;
     }
-  }, [date, data]);
+  }, [date]);
 
   async function reschedule(spotId: string, day: string) {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { day: day || null } });
     setMoving(null);
-    await load(date!);
+    if (dest) await refreshAttractions(dest.id);
   }
   async function assignToday(spotId: string) {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { day: date } });
-    await load(date!);
+    if (dest) await refreshAttractions(dest.id);
   }
 
-  if (!data || !date) return null;
-  const dest = data.destination;
-  const cityDest = destinations.find((d) => d.id === dest?.id);
-  const scheduled = [...data.scheduled].sort((a: any, b: any) => (a.hour || '99:99').localeCompare(b.hour || '99:99'));
+  if (!date || !attractions) return null;
+  const scheduled = [...attractions.filter((a) => a.day === date)].sort((a, b) => (a.hour || '99:99').localeCompare(b.hour || '99:99'));
+  const unscheduled = attractions.filter((a) => !a.day);
+  const cityDest = dest;
   const first = scheduled[0];
   const rest = scheduled.slice(1);
 
@@ -90,7 +111,7 @@ export function Today() {
       </div>
 
       <div ref={railRef} style={{ display: 'flex', gap: 8, overflow: 'auto', padding: '0 22px 18px' }}>
-        {data.days.map((d: any) => (
+        {days.map((d) => (
           <div key={d.date} data-day={d.date} onClick={() => setDate(d.date)}
             style={{ flex: 'none', minWidth: 62, textAlign: 'center', borderRadius: 14, cursor: 'pointer', padding: '9px 10px',
               background: date === d.date ? 'var(--text)' : 'var(--card-soft)', border: '1px solid var(--border)' }}>
@@ -153,10 +174,10 @@ export function Today() {
         </div>
       )}
 
-      {data.unscheduled.length > 0 && (
+      {unscheduled.length > 0 && (
         <div style={{ padding: '26px 22px 0' }}>
-          <div className="section-label" style={{ paddingBottom: 6 }}>לא שובצו {dest ? `ב${dest.nameHe}` : ''} ({data.unscheduled.length})</div>
-          {data.unscheduled.map((s: any) => (
+          <div className="section-label" style={{ paddingBottom: 6 }}>לא שובצו {dest ? `ב${dest.nameHe}` : ''} ({unscheduled.length})</div>
+          {unscheduled.map((s: any) => (
             <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '13px 0', borderTop: '1px solid var(--border-soft)' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ font: "500 14px/1.3 'Noto Sans Hebrew',sans-serif" }}>{s.nameHe}</div>
@@ -177,7 +198,7 @@ export function Today() {
               כרגע משובצת ל־{moving.day ? dayLabel(moving.day).dm : '—'}. לאיזה יום להעביר?
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, padding: '20px 0 4px' }}>
-              {data.days.filter((d: any) => d.destinationId === dest?.id).map((d: any) => (
+              {days.filter((d) => d.destinationId === dest?.id).map((d) => (
                 <div key={d.date} onClick={() => reschedule(moving.id, d.date)}
                   style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", padding: '12px 16px', borderRadius: 14, cursor: 'pointer',
                     border: `1.5px solid ${moving.day === d.date ? 'var(--accent)' : 'var(--border)'}`, color: moving.day === d.date ? 'var(--accent)' : 'var(--text)' }}>
