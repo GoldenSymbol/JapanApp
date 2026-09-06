@@ -1,5 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, getToken, setToken } from '../api';
+import {
+  createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, updateProfile,
+} from 'firebase/auth';
+import { auth } from '../firebase';
+import { api, ApiError } from '../api';
 
 export interface User {
   id: string;
@@ -31,40 +35,68 @@ interface AuthState {
 
 const Ctx = createContext<AuthState | null>(null);
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  'auth/email-already-in-use': 'האימייל הזה כבר רשום',
+  'auth/weak-password': 'הסיסמה חייבת להיות לפחות 6 תווים',
+  'auth/invalid-email': 'כתובת אימייל לא תקינה',
+  'auth/user-not-found': 'אימייל או סיסמה שגויים',
+  'auth/wrong-password': 'אימייל או סיסמה שגויים',
+  'auth/invalid-credential': 'אימייל או סיסמה שגויים',
+  'auth/too-many-requests': 'יותר מדי ניסיונות, נסה שוב בעוד כמה דקות',
+};
+
+function toApiError(e: any): ApiError {
+  return new ApiError(400, { message: AUTH_ERROR_MESSAGES[e?.code] || 'שגיאה, נסה שוב' });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [trip, setTrip] = useState<TripSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    if (!getToken()) {
-      setUser(null); setTrip(null); setLoading(false);
-      return;
-    }
-    try {
-      const data = await api('/auth/me');
-      setUser(data.user); setTrip(data.trip);
-    } catch {
-      setToken(null); setUser(null); setTrip(null);
-    } finally {
-      setLoading(false);
-    }
+  const loadProfile = useCallback(async () => {
+    const data = await api('/auth/me');
+    setUser(data.user); setTrip(data.trip);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      if (!fbUser) { setUser(null); setTrip(null); setLoading(false); return; }
+      try {
+        await loadProfile();
+      } catch {
+        setUser(null); setTrip(null);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return unsub;
+  }, [loadProfile]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api('/auth/login', { method: 'POST', json: { email, password } });
-    setToken(data.token); setUser(data.user); setTrip(data.trip);
-  }, []);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (e: any) {
+      throw toApiError(e);
+    }
+    await loadProfile();
+  }, [loadProfile]);
 
   const signup = useCallback(async (name: string, email: string, password: string) => {
-    const data = await api('/auth/signup', { method: 'POST', json: { name, email, password } });
-    setToken(data.token); setUser(data.user); setTrip(data.trip);
+    if (password.length < 8) throw new ApiError(400, { message: 'הסיסמה צריכה להיות לפחות 8 תווים' });
+    let cred;
+    try {
+      cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+    } catch (e: any) {
+      throw toApiError(e);
+    }
+    const data = await api('/auth/bootstrap', { method: 'POST', json: { name, email } });
+    setUser(data.user); setTrip(data.trip);
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null); setUser(null); setTrip(null);
+    signOut(auth);
   }, []);
 
   const createTrip = useCallback(async () => {
@@ -83,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, trip, loading, login, signup, logout, createTrip, joinTrip, refresh, updateMe }}>
+    <Ctx.Provider value={{ user, trip, loading, login, signup, logout, createTrip, joinTrip, refresh: loadProfile, updateMe }}>
       {children}
     </Ctx.Provider>
   );

@@ -1,12 +1,4 @@
-const TOKEN_KEY = 'jpn2027_token';
-
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-export function setToken(token: string | null) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
-}
+import { auth } from './firebase';
 
 export class ApiError extends Error {
   status: number;
@@ -20,7 +12,7 @@ export class ApiError extends Error {
 
 export async function api<T = any>(path: string, options: RequestInit & { json?: any } = {}): Promise<T> {
   const { json, headers, ...rest } = options;
-  const token = getToken();
+  const token = await auth.currentUser?.getIdToken();
   const res = await fetch(`/api${path}`, {
     ...rest,
     headers: {
