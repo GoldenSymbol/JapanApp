@@ -41,8 +41,8 @@ function destinationsForTrip(tripId: string) {
   });
 }
 
-function requireTrip(req: AuthedRequest, res: any): any {
-  const trip = getMyTrip(req.userId!);
+async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
+  const trip = await getMyTrip(req.userId!);
   if (!trip) {
     res.status(404).json({ error: "no_trip" });
     return null;
@@ -50,14 +50,14 @@ function requireTrip(req: AuthedRequest, res: any): any {
   return trip;
 }
 
-itineraryRouter.get("/destinations", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+itineraryRouter.get("/destinations", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   res.json({ destinations: destinationsForTrip(trip.id) });
 });
 
 itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const { nameHe, nameEn, nameJa, startDate, endDate, colorKey, transportIn } = req.body || {};
   if (!nameHe || !startDate || !endDate) return res.status(400).json({ error: "invalid_input" });
@@ -79,8 +79,8 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
   res.json({ destinations: destinationsForTrip(trip.id) });
 });
 
-itineraryRouter.patch("/destinations/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+itineraryRouter.patch("/destinations/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const allowed: Record<string, string> = { nameHe: "name_he", nameEn: "name_en", startDate: "start_date", endDate: "end_date" };
   const sets: string[] = [];
@@ -98,15 +98,15 @@ itineraryRouter.patch("/destinations/:id", requireAuth, (req: AuthedRequest, res
   res.json({ destinations: destinationsForTrip(trip.id) });
 });
 
-itineraryRouter.delete("/destinations/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+itineraryRouter.delete("/destinations/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   db.prepare("DELETE FROM destinations WHERE id = ? AND trip_id = ?").run(req.params.id, trip.id);
   res.json({ destinations: destinationsForTrip(trip.id) });
 });
 
-itineraryRouter.post("/destinations/:id/move", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+itineraryRouter.post("/destinations/:id/move", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const dir = req.body?.direction === "up" ? -1 : 1;
   const list = db.prepare("SELECT id, order_index FROM destinations WHERE trip_id = ? ORDER BY order_index ASC").all(trip.id) as any[];
@@ -149,7 +149,7 @@ itineraryRouter.get("/destinations/:id/attractions", requireAuth, (req: AuthedRe
 });
 
 itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const dest = db.prepare("SELECT * FROM destinations WHERE id = ? AND trip_id = ?").get(req.params.id, trip.id) as any;
   if (!dest) return res.status(404).json({ error: "not_found" });
@@ -179,8 +179,8 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: A
   res.json({ attractions: attractionsForDestination(dest.id, req.userId!) });
 });
 
-itineraryRouter.patch("/attractions/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+itineraryRouter.patch("/attractions/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const a = db
     .prepare(`SELECT a.*, d.trip_id, d.name_he as dest_name FROM attractions a JOIN destinations d ON d.id = a.destination_id WHERE a.id = ?`)
@@ -240,8 +240,8 @@ itineraryRouter.post("/attractions/:id/mark", requireAuth, (req: AuthedRequest, 
   res.json({ attractions: attractionsForDestination(a.destination_id, req.userId!) });
 });
 
-itineraryRouter.get("/today", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+itineraryRouter.get("/today", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const date = String(req.query.date || new Date().toISOString().slice(0, 10));
   const dest = db

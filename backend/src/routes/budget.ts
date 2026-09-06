@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { db } from "../db.js";
+import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
 import { getUsdRates, convert } from "../fx.js";
 
 export const budgetRouter = Router();
 
-function requireTrip(req: AuthedRequest, res: any): any {
-  const trip = getMyTrip(req.userId!);
+async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
+  const trip = await getMyTrip(req.userId!);
   if (!trip) {
     res.status(404).json({ error: "no_trip" });
     return null;
@@ -16,8 +17,7 @@ function requireTrip(req: AuthedRequest, res: any): any {
   return trip;
 }
 
-function budgetSnapshot(tripId: string) {
-  const trip = db.prepare("SELECT * FROM trips WHERE id = ?").get(tripId) as any;
+function budgetSnapshot(tripId: string, budgetTotal: number) {
   const cats = db.prepare("SELECT * FROM budget_categories WHERE trip_id = ? ORDER BY order_index ASC").all(tripId) as any[];
   const categories = cats.map((c) => {
     const spent = (db.prepare("SELECT COALESCE(SUM(amount), 0) s FROM budget_transactions WHERE category_id = ?").get(c.id) as any).s;
@@ -31,26 +31,28 @@ function budgetSnapshot(tripId: string) {
     };
   });
   const paid = categories.reduce((s, c) => s + c.spent, 0);
-  return { total: trip.budget_total, paid, categories };
+  return { total: budgetTotal, paid, categories };
 }
 
-budgetRouter.get("/", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
-  res.json(budgetSnapshot(trip.id));
+  res.json(budgetSnapshot(trip.id, trip.budget_total));
 });
 
-budgetRouter.patch("/", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
+  let budgetTotal = trip.budget_total;
   if (typeof req.body?.total === "number") {
-    db.prepare("UPDATE trips SET budget_total = ? WHERE id = ?").run(req.body.total, trip.id);
+    budgetTotal = req.body.total;
+    await adminDb.collection("trips").doc(trip.id).update({ budgetTotal });
   }
-  res.json(budgetSnapshot(trip.id));
+  res.json(budgetSnapshot(trip.id, budgetTotal));
 });
 
-budgetRouter.post("/categories", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.post("/categories", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const { name, planned, note } = req.body || {};
   if (!name) return res.status(400).json({ error: "invalid_input" });
@@ -59,11 +61,11 @@ budgetRouter.post("/categories", requireAuth, (req: AuthedRequest, res) => {
   db.prepare(`INSERT INTO budget_categories (id, trip_id, order_index, name, planned_amount, note) VALUES (?, ?, ?, ?, ?, ?)`).run(
     id, trip.id, maxOrder + 1, name, planned || 0, note || null
   );
-  res.json(budgetSnapshot(trip.id));
+  res.json(budgetSnapshot(trip.id, trip.budget_total));
 });
 
-budgetRouter.patch("/categories/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.patch("/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const allowed: Record<string, string> = { name: "name", planned: "planned_amount", note: "note" };
   const sets: string[] = [];
@@ -78,18 +80,18 @@ budgetRouter.patch("/categories/:id", requireAuth, (req: AuthedRequest, res) => 
     vals.push(req.params.id, trip.id);
     db.prepare(`UPDATE budget_categories SET ${sets.join(", ")} WHERE id = ? AND trip_id = ?`).run(...vals);
   }
-  res.json(budgetSnapshot(trip.id));
+  res.json(budgetSnapshot(trip.id, trip.budget_total));
 });
 
-budgetRouter.delete("/categories/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.delete("/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   db.prepare("DELETE FROM budget_categories WHERE id = ? AND trip_id = ?").run(req.params.id, trip.id);
-  res.json(budgetSnapshot(trip.id));
+  res.json(budgetSnapshot(trip.id, trip.budget_total));
 });
 
-budgetRouter.post("/categories/:id/transactions", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const cat = db.prepare("SELECT * FROM budget_categories WHERE id = ? AND trip_id = ?").get(req.params.id, trip.id) as any;
   if (!cat) return res.status(404).json({ error: "not_found" });
@@ -108,7 +110,7 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, (req: AuthedReque
       targetScreen: "budget",
     });
   }
-  res.json(budgetSnapshot(trip.id));
+  res.json(budgetSnapshot(trip.id, trip.budget_total));
 });
 
 function personalSnapshot(tripId: string, userId: string) {
@@ -129,14 +131,14 @@ function personalSnapshot(tripId: string, userId: string) {
   return { total: pb?.planned_total || 0, paid, categories };
 }
 
-budgetRouter.get("/personal", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.get("/personal", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   res.json(personalSnapshot(trip.id, req.userId!));
 });
 
-budgetRouter.patch("/personal", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.patch("/personal", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   if (typeof req.body?.total === "number") {
     db.prepare(
@@ -147,8 +149,8 @@ budgetRouter.patch("/personal", requireAuth, (req: AuthedRequest, res) => {
   res.json(personalSnapshot(trip.id, req.userId!));
 });
 
-budgetRouter.post("/personal/categories", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.post("/personal/categories", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const { name, planned, note } = req.body || {};
   if (!name) return res.status(400).json({ error: "invalid_input" });
@@ -162,8 +164,8 @@ budgetRouter.post("/personal/categories", requireAuth, (req: AuthedRequest, res)
   res.json(personalSnapshot(trip.id, req.userId!));
 });
 
-budgetRouter.patch("/personal/categories/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.patch("/personal/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const allowed: Record<string, string> = { name: "name", planned: "planned_amount", note: "note" };
   const sets: string[] = [];
@@ -181,15 +183,15 @@ budgetRouter.patch("/personal/categories/:id", requireAuth, (req: AuthedRequest,
   res.json(personalSnapshot(trip.id, req.userId!));
 });
 
-budgetRouter.delete("/personal/categories/:id", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.delete("/personal/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   db.prepare("DELETE FROM personal_budget_categories WHERE id = ? AND trip_id = ? AND user_id = ?").run(req.params.id, trip.id, req.userId);
   res.json(personalSnapshot(trip.id, req.userId!));
 });
 
-budgetRouter.post("/personal/categories/:id/transactions", requireAuth, (req: AuthedRequest, res) => {
-  const trip = requireTrip(req, res);
+budgetRouter.post("/personal/categories/:id/transactions", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
   if (!trip) return;
   const cat = db.prepare("SELECT * FROM personal_budget_categories WHERE id = ? AND trip_id = ? AND user_id = ?").get(req.params.id, trip.id, req.userId) as any;
   if (!cat) return res.status(404).json({ error: "not_found" });

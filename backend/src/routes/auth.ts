@@ -33,7 +33,7 @@ function publicUser(u: any) {
 // Called once right after a Firebase Auth signup, with a verified Firebase ID token.
 // Creates the matching profile row in SQLite (keyed by the Firebase uid) if it doesn't exist yet —
 // password verification itself is handled entirely by Firebase Auth, not here.
-authRouter.post("/bootstrap", requireAuth, (req: AuthedRequest, res) => {
+authRouter.post("/bootstrap", requireAuth, async (req: AuthedRequest, res) => {
   const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(req.userId);
   if (!existing) {
     const { name, email } = req.body || {};
@@ -42,14 +42,14 @@ authRouter.post("/bootstrap", requireAuth, (req: AuthedRequest, res) => {
     ).run(req.userId, name || "משתמש", String(email || "").toLowerCase());
   }
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.userId);
-  const trip = getMyTrip(req.userId!);
+  const trip = await getMyTrip(req.userId!);
   res.json({ user: publicUser(user), trip: trip ? { id: trip.id, name: trip.name } : null });
 });
 
-authRouter.get("/me", requireAuth, (req: AuthedRequest, res) => {
+authRouter.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.userId) as any;
   if (!user) return res.status(404).json({ error: "not_found" });
-  const trip = getMyTrip(user.id);
+  const trip = await getMyTrip(user.id);
   res.json({ user: publicUser(user), trip: trip ? { id: trip.id, name: trip.name } : null });
 });
 

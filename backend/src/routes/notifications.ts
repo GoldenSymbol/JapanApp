@@ -5,8 +5,8 @@ import { getMyTrip } from "../context.js";
 
 export const notificationsRouter = Router();
 
-notificationsRouter.get("/", requireAuth, (req: AuthedRequest, res) => {
-  const trip = getMyTrip(req.userId!);
+notificationsRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await getMyTrip(req.userId!);
   if (!trip) return res.json({ notifications: [], unreadCount: 0 });
   const rows = db
     .prepare(
@@ -37,8 +37,8 @@ notificationsRouter.post("/:id/read", requireAuth, (req: AuthedRequest, res) => 
   res.json({ ok: true });
 });
 
-notificationsRouter.post("/read-all", requireAuth, (req: AuthedRequest, res) => {
-  const trip = getMyTrip(req.userId!);
+notificationsRouter.post("/read-all", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await getMyTrip(req.userId!);
   if (!trip) return res.json({ ok: true });
   const ids = db.prepare("SELECT id FROM notifications WHERE trip_id = ?").all(trip.id) as any[];
   const stmt = db.prepare(`INSERT OR IGNORE INTO notification_reads (notification_id, user_id) VALUES (?, ?)`);
@@ -54,8 +54,8 @@ notificationsRouter.delete("/:id", requireAuth, (req: AuthedRequest, res) => {
   res.json({ ok: true });
 });
 
-notificationsRouter.post("/delete-all", requireAuth, (req: AuthedRequest, res) => {
-  const trip = getMyTrip(req.userId!);
+notificationsRouter.post("/delete-all", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await getMyTrip(req.userId!);
   if (!trip) return res.json({ ok: true });
   const ids = db.prepare("SELECT id FROM notifications WHERE trip_id = ?").all(trip.id) as any[];
   const stmt = db.prepare(`INSERT OR IGNORE INTO notification_deletes (notification_id, user_id) VALUES (?, ?)`);

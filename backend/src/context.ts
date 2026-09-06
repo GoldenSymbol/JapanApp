@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db.js";
+import { adminDb } from "./firebaseAdmin.js";
 
 export interface TripRow {
   id: string;
@@ -7,25 +8,19 @@ export interface TripRow {
   code: string;
   owner_id: string;
   budget_total: number;
-  created_at: string;
 }
 
-export function getMyTrip(userId: string): TripRow | undefined {
-  return db
-    .prepare(
-      `SELECT t.* FROM trips t
-       JOIN trip_members tm ON tm.trip_id = t.id
-       WHERE tm.user_id = ?
-       ORDER BY tm.joined_at ASC LIMIT 1`
-    )
-    .get(userId) as TripRow | undefined;
+export async function getMyTrip(userId: string): Promise<TripRow | undefined> {
+  const snap = await adminDb.collection("trips").where("memberIds", "array-contains", userId).limit(1).get();
+  if (snap.empty) return undefined;
+  const doc = snap.docs[0];
+  const d = doc.data();
+  return { id: doc.id, name: d.name, code: d.code, owner_id: d.ownerId, budget_total: d.budgetTotal || 0 };
 }
 
-export function requireMembership(tripId: string, userId: string): boolean {
-  const row = db
-    .prepare(`SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?`)
-    .get(tripId, userId);
-  return !!row;
+export async function requireMembership(tripId: string, userId: string): Promise<boolean> {
+  const doc = await adminDb.collection("trips").doc(tripId).collection("members").doc(userId).get();
+  return doc.exists;
 }
 
 export function genInviteCode(): string {
