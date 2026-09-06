@@ -72,12 +72,83 @@ function Converter() {
   );
 }
 
+const PIE_COLORS = ['#D9564B', '#7FB069', '#6FA8DC', '#D9A441', '#C77DBB', '#4E8098', '#B24C63', '#8C6E4A', '#5C8A5C', '#A5794D'];
+const REMAINING_COLOR = '#3A3D42';
+
+// A plain SVG pie chart — no charting library needed for a handful of slices.
+function PieChart({ slices, size = 200 }: { slices: { label: string; value: number; color: string }[]; size?: number }) {
+  const total = slices.reduce((s, d) => s + d.value, 0);
+  const radius = size / 2;
+  if (total <= 0) return null;
+  const nonZero = slices.filter((s) => s.value > 0);
+  if (nonZero.length === 1) {
+    return (
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+        <circle cx={radius} cy={radius} r={radius} fill={nonZero[0].color} />
+      </svg>
+    );
+  }
+  let cumulative = 0;
+  const paths = slices.filter((s) => s.value > 0).map((s, i) => {
+    const startAngle = (cumulative / total) * 2 * Math.PI;
+    cumulative += s.value;
+    const endAngle = (cumulative / total) * 2 * Math.PI;
+    const x1 = radius + radius * Math.sin(startAngle);
+    const y1 = radius - radius * Math.cos(startAngle);
+    const x2 = radius + radius * Math.sin(endAngle);
+    const y2 = radius - radius * Math.cos(endAngle);
+    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
+    return { key: i, d: `M ${radius} ${radius} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`, color: s.color };
+  });
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+      {paths.map((p) => <path key={p.key} d={p.d} fill={p.color} />)}
+    </svg>
+  );
+}
+
+function BudgetPieView({ data }: { data: any }) {
+  const remaining = Math.max(0, data.total - data.paid);
+  const slices = [
+    ...data.categories.map((c: any, i: number) => ({ label: c.name, value: c.spent, color: PIE_COLORS[i % PIE_COLORS.length] })),
+    ...(remaining > 0 ? [{ label: 'נותר בתקציב', value: remaining, color: REMAINING_COLOR }] : []),
+  ];
+  const sum = slices.reduce((s, x) => s + x.value, 0);
+
+  if (sum <= 0) {
+    return (
+      <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+        אין עדיין הוצאות או תקציב להצגה בתרשים.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, padding: '10px 0 4px' }}>
+      <PieChart slices={slices} />
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {slices.map((s, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', background: s.color, flex: 'none' }} />
+            <div style={{ flex: 1, font: "500 13.5px 'Noto Sans Hebrew',sans-serif" }}>{s.label}</div>
+            <div style={{ font: "600 13.5px 'Noto Sans Hebrew',sans-serif" }}>₪{s.value.toLocaleString('en-US')}</div>
+            <div style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', width: 38, textAlign: 'left' }}>
+              {Math.round((s.value / sum) * 100)}%
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Shared UI for both the group budget (basePath="/budget") and each member's own private
 // personal budget (basePath="/budget/personal") — same shape of data, same interactions.
-function BudgetSection({ basePath, title, subtitle, newCategoryLabel }: { basePath: string; title: string; subtitle?: string; newCategoryLabel: string }) {
+function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart }: { basePath: string; title: string; subtitle?: string; newCategoryLabel: string; allowChart?: boolean }) {
   const [data, setData] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
+  const [view, setView] = useState<'list' | 'chart'>('list');
 
   async function load() { setData(await api(basePath)); }
   useEffect(() => { load(); }, [basePath]);
@@ -135,8 +206,23 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel }: { basePa
         )}
       </div>
 
-      <div className="section-label" style={{ padding: '20px 0 10px' }}>לפי קטגוריה</div>
-      {data.categories.map((c: any) => {
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 10px' }}>
+        <div className="section-label" style={{ padding: 0 }}>לפי קטגוריה</div>
+        {allowChart && !editing && data.categories.length > 0 && (
+          <div style={{ display: 'flex', gap: 4, background: 'var(--card-soft)', border: '1px solid var(--border)', borderRadius: 10, padding: 3 }}>
+            {(['list', 'chart'] as const).map((v) => (
+              <div key={v} onClick={() => setView(v)}
+                style={{ padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+                  background: view === v ? 'var(--accent)' : 'transparent', color: view === v ? '#fff' : 'var(--text-dim)' }}>
+                {v === 'list' ? 'רשימה' : 'עוגה'}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {allowChart && !editing && view === 'chart' ? (
+        <BudgetPieView data={data} />
+      ) : data.categories.map((c: any) => {
         const pct = data.total > 0 ? Math.min(100, Math.round((c.spent / data.total) * 100)) : 0;
         return (
           <div key={c.id} style={{ padding: '14px 0', borderTop: '1px solid var(--border-soft)' }}>
@@ -206,7 +292,7 @@ export function Budget() {
       </div>
 
       {mode === 'general' ? (
-        <BudgetSection basePath="/budget" title="תקציב כללי" subtitle="כל ההוצאות של הקבוצה יחד" newCategoryLabel="קטגוריה חדשה" />
+        <BudgetSection basePath="/budget" title="תקציב כללי" subtitle="כל ההוצאות של הקבוצה יחד" newCategoryLabel="קטגוריה חדשה" allowChart />
       ) : (
         <BudgetSection basePath="/budget/personal" title="התקציב האישי שלי" newCategoryLabel="הוצאה אישית חדשה" />
       )}
