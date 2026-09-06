@@ -94,7 +94,7 @@ tripsRouter.get("/current", requireAuth, async (req: AuthedRequest, res) => {
       ownerId: trip.owner_id,
       budgetTotal: trip.budget_total,
       members: await memberList(trip.id),
-      pendingInvites: invitesSnap.docs.map((doc) => ({ email: doc.data().email, created_at: doc.data().createdAt })),
+      pendingInvites: invitesSnap.docs.map((doc) => ({ email: doc.data().email, created_at: doc.data().createdAt?.toDate?.().toISOString() ?? null })),
     },
   });
 });
