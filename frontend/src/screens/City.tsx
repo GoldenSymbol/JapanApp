@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
@@ -159,8 +160,14 @@ export function City() {
           </div>
         )}
 
+        <AnimatePresence initial={false}>
         {spots.map((s) => (
-          <div key={s.id} style={{ display: 'flex', gap: 12, padding: '16px 0', borderTop: '1px solid var(--border-soft)', opacity: s.myStatus === 'skipped' ? 0.5 : 1 }}>
+          <motion.div key={s.id} layout
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: s.myStatus === 'skipped' ? 0.5 : 1, y: 0 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 340 }}
+            style={{ display: 'flex', gap: 12, padding: '16px 0', borderTop: '1px solid var(--border-soft)' }}>
             <div onClick={() => toggleMark(s)} style={{
               width: 24, height: 24, flex: 'none', marginTop: 2, borderRadius: 8, cursor: 'pointer',
               border: `1.5px solid ${s.myStatus === 'done' ? 'var(--accent)' : 'var(--border)'}`,
@@ -204,8 +211,9 @@ export function City() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
+        </AnimatePresence>
       </div>
     </div>
   );

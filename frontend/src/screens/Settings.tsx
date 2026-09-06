@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useAuth } from '../state/AuthContext';
 import { useTheme } from '../state/ThemeContext';
@@ -159,22 +160,32 @@ export function Settings() {
         <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)', textAlign: 'center', paddingTop: 6 }}>גרסה 1.0 · יפן 2027</div>
       </div>
 
-      {leaveOpen && (
-        <div className="drawer-overlay" style={{ alignItems: 'center' }} onClick={() => setLeaveOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 'calc(100% - 52px)', maxWidth: 400, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 22, padding: 22 }}>
-            <div style={{ font: "600 18px/1.3 'Noto Sans Hebrew',sans-serif" }}>לצאת מהטיול?</div>
-            <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 9 }}>
-              {memberCount > 1
-                ? 'תצא מ״יפן 2027״. הסימונים שלך יימחקו, המסלול יישאר לשאר המשתתפים. אפשר לחזור עם קוד ההזמנה.'
-                : 'אתה המשתתף היחיד. יציאה תשאיר את הטיול בלי אף אחד — תוכל לחזור אליו רק עם קוד ההזמנה.'}
-            </div>
-            <div style={{ display: 'flex', gap: 9, marginTop: 20 }}>
-              <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setLeaveOpen(false)}>ביטול</div>
-              <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={leaveTrip}>צא מהטיול</div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {leaveOpen && (
+          <motion.div
+            className="drawer-overlay" style={{ alignItems: 'center' }} onClick={() => setLeaveOpen(false)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: 'calc(100% - 52px)', maxWidth: 400, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 22, padding: 22 }}
+              initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 380 }}
+            >
+              <div style={{ font: "600 18px/1.3 'Noto Sans Hebrew',sans-serif" }}>לצאת מהטיול?</div>
+              <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 9 }}>
+                {memberCount > 1
+                  ? 'תצא מ״יפן 2027״. הסימונים שלך יימחקו, המסלול יישאר לשאר המשתתפים. אפשר לחזור עם קוד ההזמנה.'
+                  : 'אתה המשתתף היחיד. יציאה תשאיר את הטיול בלי אף אחד — תוכל לחזור אליו רק עם קוד ההזמנה.'}
+              </div>
+              <div style={{ display: 'flex', gap: 9, marginTop: 20 }}>
+                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setLeaveOpen(false)}>ביטול</div>
+                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={leaveTrip}>צא מהטיול</div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

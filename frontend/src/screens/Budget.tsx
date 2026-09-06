@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 
 const CURRENCIES: Record<string, { label: string; symbol: string }> = {
@@ -226,10 +227,17 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
       </div>
       {allowChart && !editing && view === 'chart' ? (
         <BudgetPieView data={data} />
-      ) : data.categories.map((c: any) => {
+      ) : (
+      <AnimatePresence initial={false}>
+      {data.categories.map((c: any) => {
         const pct = data.total > 0 ? Math.min(100, Math.round((c.spent / data.total) * 100)) : 0;
         return (
-          <div key={c.id} style={{ padding: '14px 0', borderTop: '1px solid var(--border-soft)' }}>
+          <motion.div key={c.id} layout
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 340 }}
+            style={{ padding: '14px 0', borderTop: '1px solid var(--border-soft)' }}>
             {editing ? (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input className="field" style={{ flex: 1 }} value={nameDrafts[c.id] || ''} placeholder={c.name}
@@ -266,9 +274,11 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
                 {addVals[c.id] ? `${c.spent.toLocaleString('en-US')} + ${addVals[c.id]} = ${(c.spent + (parseFloat(addVals[c.id]) || 0)).toLocaleString('en-US')} · או ${Math.max(0, c.spent - (parseFloat(addVals[c.id]) || 0)).toLocaleString('en-US')} אם מורידים` : `סה״כ בקטגוריה: ₪${c.spent.toLocaleString('en-US')}`}
               </div>
             )}
-          </div>
+          </motion.div>
         );
       })}
+      </AnimatePresence>
+      )}
       {editing && (
         <div className="btn btn-ghost" style={{ marginTop: 14, textAlign: 'center', padding: 16, borderStyle: 'dashed', borderRadius: 20 }} onClick={addCategory}>
           + הוסף קטגוריה

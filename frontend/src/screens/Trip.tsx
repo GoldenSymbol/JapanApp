@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
@@ -87,8 +88,14 @@ export function Trip() {
             </div>
           </div>
         )}
+        <AnimatePresence initial={false}>
         {destinations.map((c) => (
-          <div key={c.id} className="card" style={{ background: cityCardBg(c.colorKey, dark, palette) }}>
+          <motion.div key={c.id} layout
+            initial={{ opacity: 0, y: 14, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+            className="card" style={{ background: cityCardBg(c.colorKey, dark, palette) }}>
             <div className="jp-watermark" style={{ left: 14, top: 4, fontSize: 64 }}>{c.nameJa}</div>
             <div style={{ position: 'relative' }}>
               {editing ? (
@@ -115,8 +122,9 @@ export function Trip() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
+        </AnimatePresence>
 
         {editing && !adding && (
           <div className="btn btn-ghost" style={{ borderStyle: 'dashed', textAlign: 'center', padding: 18, borderRadius: 20 }} onClick={openAddForm}>

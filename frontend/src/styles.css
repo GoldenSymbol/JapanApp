@@ -125,6 +125,13 @@ input:focus { outline: none; }
   background: transparent;
 }
 
+.btn, .pill, .icon-btn {
+  transition: transform .12s ease, opacity .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn:active, .pill:active, .icon-btn:active {
+  transform: scale(0.94);
+}
+
 .card {
   border-radius: var(--radius-lg);
   background: var(--card);
@@ -177,12 +184,6 @@ input.field {
 .drawer-sheet-top {
   border-radius: 0 0 26px 26px;
   box-shadow: 0 12px 30px rgba(0,0,0,0.3);
-  animation: drawer-slide-down .22s ease-out;
-}
-
-@keyframes drawer-slide-down {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
 }
 
 .toast {
