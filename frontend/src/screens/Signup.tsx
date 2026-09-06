@@ -28,9 +28,6 @@ export function Signup() {
     <div className="app-shell" style={{ justifyContent: 'center', padding: '0 26px 40px' }}>
       <Link to="/login" style={{ font: "500 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', padding: '8px 0' }}>→ חזרה</Link>
       <div style={{ font: "600 27px/1.25 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.4px', marginTop: 20 }}>יצירת חשבון</div>
-      <div style={{ font: "400 13.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>
-        השם הוא מה שיראו שאר המשתתפים בטיול.
-      </div>
       <div style={{ marginTop: 26 }}>
         <div className="section-label" style={{ paddingBottom: 9 }}>שם</div>
         <input className="field" placeholder="איך לקרוא לך" value={name} onChange={(e) => setName(e.target.value)} />
