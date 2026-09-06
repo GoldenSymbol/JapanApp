@@ -21,7 +21,7 @@ function countdown(dateIso: string) {
 }
 
 export function Today() {
-  const { destinations } = useTripData();
+  const { destinations, loading: destLoading } = useTripData();
   const { dark, palette } = useTheme();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
@@ -29,20 +29,26 @@ export function Today() {
   const [moving, setMoving] = useState<any>(null);
   const railRef = useRef<HTMLDivElement>(null);
   const latestReq = useRef(0);
+  const initialized = useRef(false);
 
-  async function load(d: string | null) {
+  async function load(d: string) {
     const reqId = ++latestReq.current;
-    const q = d ? `?date=${d}` : '';
-    const res = await api(`/today${q}`);
+    const res = await api(`/today?date=${d}`);
     if (reqId !== latestReq.current) return; // a newer request already superseded this one
     setData(res);
-    if (!d) {
-      if (!res.destination && res.days.length) setDate(res.days[0].date);
-      else setDate(res.date);
-    }
   }
 
-  useEffect(() => { load(null); }, []);
+  // Figure out which date to show using the destinations we already have from
+  // TripDataContext (shared app-wide, no extra fetch) instead of asking the server —
+  // that used to cost a whole extra request/response round-trip before any content showed.
+  useEffect(() => {
+    if (destLoading || initialized.current) return;
+    initialized.current = true;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const active = destinations.find((d) => d.startDate <= todayIso && d.endDate >= todayIso);
+    setDate(active ? todayIso : destinations[0]?.startDate || todayIso);
+  }, [destLoading, destinations]);
+
   useEffect(() => { if (date) load(date); }, [date]);
 
   useEffect(() => {
@@ -57,11 +63,11 @@ export function Today() {
   async function reschedule(spotId: string, day: string) {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { day: day || null } });
     setMoving(null);
-    await load(date);
+    await load(date!);
   }
   async function assignToday(spotId: string) {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { day: date } });
-    await load(date);
+    await load(date!);
   }
 
   if (!data || !date) return null;

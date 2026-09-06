@@ -321,11 +321,16 @@ itineraryRouter.get("/today", requireAuth, async (req: AuthedRequest, res) => {
     };
   };
 
+  const [scheduledOut, unscheduledOut] = await Promise.all([
+    Promise.all(scheduled.map(mapAttr)),
+    Promise.all(unscheduled.map(mapAttr)),
+  ]);
+
   res.json({
     date,
     destination: dest ? { id: dest.id, nameHe: dest.nameHe, startDate: dest.startDate, endDate: dest.endDate } : null,
     days,
-    scheduled: await Promise.all(scheduled.map(mapAttr)),
-    unscheduled: await Promise.all(unscheduled.map(mapAttr)),
+    scheduled: scheduledOut,
+    unscheduled: unscheduledOut,
   });
 });
