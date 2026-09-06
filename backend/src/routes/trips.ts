@@ -1,19 +1,19 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
-import { db } from "../db.js";
 import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, genInviteCode } from "../context.js";
+import { getUserDoc } from "../users.js";
 
 export const tripsRouter = Router();
 
 async function memberList(tripId: string) {
   const snap = await adminDb.collection("trips").doc(tripId).collection("members").orderBy("joinedAt", "asc").get();
-  return snap.docs.map((doc) => {
-    const uid = doc.id;
-    const u = db.prepare("SELECT id, name, email, avatar_color FROM users WHERE id = ?").get(uid) as any;
-    return { id: uid, name: u?.name || "משתמש", email: u?.email || "", avatarColor: u?.avatar_color || "#B23A32", role: doc.data().role };
+  const users = await Promise.all(snap.docs.map((doc) => getUserDoc(doc.id)));
+  return snap.docs.map((doc, i) => {
+    const u = users[i];
+    return { id: doc.id, name: u?.name || "משתמש", email: u?.email || "", avatarColor: u?.avatarColor || "#B23A32", role: doc.data().role };
   });
 }
 
@@ -30,10 +30,6 @@ tripsRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
   batch.set(tripRef.collection("members").doc(req.userId!), { role: "owner", joinedAt: FieldValue.serverTimestamp() });
   await batch.commit();
 
-  // A stub row so existing SQLite tables (destinations, budget_categories, notifications, invites)
-  // can keep their `REFERENCES trips(id)` foreign keys — Firestore is the source of truth now.
-  db.prepare(`INSERT INTO trips (id, name, code, owner_id) VALUES (?, ?, ?, ?)`).run(id, name, code, req.userId);
-
   res.json({ trip: { id, name, code } });
 });
 
@@ -44,17 +40,19 @@ tripsRouter.get("/preview", requireAuth, async (req: AuthedRequest, res) => {
   const trip = snap.docs[0];
   const tripId = trip.id;
   const d = trip.data();
-  const owner = db.prepare("SELECT name FROM users WHERE id = ?").get(d.ownerId) as any;
+  const owner = await getUserDoc(d.ownerId);
   const memberCount = (d.memberIds || []).length;
-  const destCount = (db.prepare("SELECT COUNT(*) c FROM destinations WHERE trip_id = ?").get(tripId) as any).c;
-  const days = db.prepare("SELECT MIN(start_date) a, MAX(end_date) b FROM destinations WHERE trip_id = ?").get(tripId) as any;
+  const destSnap = await adminDb.collection("trips").doc(tripId).collection("destinations").get();
+  const dests = destSnap.docs.map((doc) => doc.data());
+  const startDate = dests.reduce((min: string | null, x: any) => (!min || x.startDate < min ? x.startDate : min), null as string | null);
+  const endDate = dests.reduce((max: string | null, x: any) => (!max || x.endDate > max ? x.endDate : max), null as string | null);
   res.json({
     name: d.name,
-    destinations: destCount,
+    destinations: dests.length,
     members: memberCount,
     ownerName: owner?.name,
-    startDate: days?.a,
-    endDate: days?.b,
+    startDate,
+    endDate,
   });
 });
 
@@ -72,7 +70,7 @@ tripsRouter.post("/join", requireAuth, async (req: AuthedRequest, res) => {
   batch.update(tripRef, { memberIds: FieldValue.arrayUnion(req.userId) });
   await batch.commit();
 
-  const email = (db.prepare("SELECT email FROM users WHERE id = ?").get(req.userId) as any)?.email;
+  const email = (await getUserDoc(req.userId!))?.email;
   if (email) {
     const pending = await tripRef.collection("invites").where("email", "==", email).where("status", "==", "pending").get();
     const inviteBatch = adminDb.batch();

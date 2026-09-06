@@ -38,6 +38,35 @@ service cloud.firestore {
         }
       }
 
+      match /budgetCategories/{catId} {
+        allow read: if isMember(tripId);
+        allow write: if false;
+      }
+
+      match /budgetTransactions/{txId} {
+        allow read: if isMember(tripId);
+        allow write: if false;
+      }
+
+      // Personal budgets are private to each member — only the owning user may read
+      // their own categories/transactions, never other trip members.
+      match /personalBudgets/{userId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      match /personalBudgetCategories/{catId} {
+        allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+        allow write: if false;
+      }
+
+      // No userId on the transaction doc itself (only categoryId) — since nothing reads
+      // this directly from the client anyway (all access goes through the backend API),
+      // keep it server-only rather than adding a redundant field just for a rule.
+      match /personalBudgetTransactions/{txId} {
+        allow read, write: if false;
+      }
+
       match /notifications/{notifId} {
         // Notifications themselves are only ever created by the backend. But read state
         // (readBy) and per-user dismissal (deletedBy) are written directly from the browser

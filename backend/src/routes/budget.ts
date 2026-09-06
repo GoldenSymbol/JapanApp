@@ -1,12 +1,15 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
-import { db } from "../db.js";
 import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
 import { getUsdRates, convert } from "../fx.js";
 
 export const budgetRouter = Router();
+
+function tripRef(tripId: string) {
+  return adminDb.collection("trips").doc(tripId);
+}
 
 async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
   const trip = await getMyTrip(req.userId!);
@@ -17,17 +20,29 @@ async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
   return trip;
 }
 
-function budgetSnapshot(tripId: string, budgetTotal: number) {
-  const cats = db.prepare("SELECT * FROM budget_categories WHERE trip_id = ? ORDER BY order_index ASC").all(tripId) as any[];
+async function fetchBudgetCategories(tripId: string) {
+  const snap = await tripRef(tripId).collection("budgetCategories").get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any)).sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+async function fetchBudgetTransactions(tripId: string) {
+  const snap = await tripRef(tripId).collection("budgetTransactions").get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
+}
+
+async function budgetSnapshot(tripId: string, budgetTotal: number) {
+  const [cats, txs] = await Promise.all([fetchBudgetCategories(tripId), fetchBudgetTransactions(tripId)]);
+  const spentByCategory = new Map<string, number>();
+  for (const t of txs) spentByCategory.set(t.categoryId, (spentByCategory.get(t.categoryId) || 0) + t.amount);
   const categories = cats.map((c) => {
-    const spent = (db.prepare("SELECT COALESCE(SUM(amount), 0) s FROM budget_transactions WHERE category_id = ?").get(c.id) as any).s;
+    const spent = spentByCategory.get(c.id) || 0;
     return {
       id: c.id,
       name: c.name,
-      planned: c.planned_amount,
+      planned: c.plannedAmount,
       spent,
       note: c.note,
-      percent: c.planned_amount > 0 ? Math.min(999, Math.round((spent / c.planned_amount) * 100)) : 0,
+      percent: c.plannedAmount > 0 ? Math.min(999, Math.round((spent / c.plannedAmount) * 100)) : 0,
     };
   });
   const paid = categories.reduce((s, c) => s + c.spent, 0);
@@ -37,7 +52,7 @@ function budgetSnapshot(tripId: string, budgetTotal: number) {
 budgetRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  res.json(budgetSnapshot(trip.id, trip.budget_total));
+  res.json(await budgetSnapshot(trip.id, trip.budget_total));
 });
 
 budgetRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
@@ -46,9 +61,9 @@ budgetRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
   let budgetTotal = trip.budget_total;
   if (typeof req.body?.total === "number") {
     budgetTotal = req.body.total;
-    await adminDb.collection("trips").doc(trip.id).update({ budgetTotal });
+    await tripRef(trip.id).update({ budgetTotal });
   }
-  res.json(budgetSnapshot(trip.id, budgetTotal));
+  res.json(await budgetSnapshot(trip.id, budgetTotal));
 });
 
 budgetRouter.post("/categories", requireAuth, async (req: AuthedRequest, res) => {
@@ -56,51 +71,53 @@ budgetRouter.post("/categories", requireAuth, async (req: AuthedRequest, res) =>
   if (!trip) return;
   const { name, planned, note } = req.body || {};
   if (!name) return res.status(400).json({ error: "invalid_input" });
-  const maxOrder = (db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM budget_categories WHERE trip_id = ?").get(trip.id) as any).m;
-  const id = randomUUID();
-  db.prepare(`INSERT INTO budget_categories (id, trip_id, order_index, name, planned_amount, note) VALUES (?, ?, ?, ?, ?, ?)`).run(
-    id, trip.id, maxOrder + 1, name, planned || 0, note || null
-  );
-  res.json(budgetSnapshot(trip.id, trip.budget_total));
+  const existing = await fetchBudgetCategories(trip.id);
+  const maxOrder = existing.reduce((m, c) => Math.max(m, c.orderIndex), -1);
+  await tripRef(trip.id).collection("budgetCategories").doc(randomUUID()).set({
+    orderIndex: maxOrder + 1,
+    name,
+    plannedAmount: planned || 0,
+    note: note || null,
+  });
+  res.json(await budgetSnapshot(trip.id, trip.budget_total));
 });
 
 budgetRouter.patch("/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const allowed: Record<string, string> = { name: "name", planned: "planned_amount", note: "note" };
-  const sets: string[] = [];
-  const vals: any[] = [];
-  for (const [k, col] of Object.entries(allowed)) {
-    if (k in (req.body || {})) {
-      sets.push(`${col} = ?`);
-      vals.push(req.body[k]);
-    }
+  const allowed: Record<string, string> = { name: "name", planned: "plannedAmount", note: "note" };
+  const patch: Record<string, any> = {};
+  for (const [k, field] of Object.entries(allowed)) {
+    if (k in (req.body || {})) patch[field] = req.body[k];
   }
-  if (sets.length) {
-    vals.push(req.params.id, trip.id);
-    db.prepare(`UPDATE budget_categories SET ${sets.join(", ")} WHERE id = ? AND trip_id = ?`).run(...vals);
+  if (Object.keys(patch).length) {
+    await tripRef(trip.id).collection("budgetCategories").doc(String(req.params.id)).update(patch);
   }
-  res.json(budgetSnapshot(trip.id, trip.budget_total));
+  res.json(await budgetSnapshot(trip.id, trip.budget_total));
 });
 
 budgetRouter.delete("/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  db.prepare("DELETE FROM budget_categories WHERE id = ? AND trip_id = ?").run(req.params.id, trip.id);
-  res.json(budgetSnapshot(trip.id, trip.budget_total));
+  await tripRef(trip.id).collection("budgetCategories").doc(String(req.params.id)).delete();
+  res.json(await budgetSnapshot(trip.id, trip.budget_total));
 });
 
 budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const cat = db.prepare("SELECT * FROM budget_categories WHERE id = ? AND trip_id = ?").get(req.params.id, trip.id) as any;
-  if (!cat) return res.status(404).json({ error: "not_found" });
+  const catId = String(req.params.id);
+  const catDoc = await tripRef(trip.id).collection("budgetCategories").doc(catId).get();
+  if (!catDoc.exists) return res.status(404).json({ error: "not_found" });
+  const cat = catDoc.data()!;
   let amount = Number(req.body?.amount || 0);
-  if (req.body?.direction === "subtract") amount = -Math.abs(amount);
-  else amount = Math.abs(amount);
-  db.prepare(`INSERT INTO budget_transactions (id, category_id, amount, note) VALUES (?, ?, ?, ?)`).run(
-    randomUUID(), cat.id, amount, req.body?.note || null
-  );
+  amount = req.body?.direction === "subtract" ? -Math.abs(amount) : Math.abs(amount);
+  await tripRef(trip.id).collection("budgetTransactions").doc(randomUUID()).set({
+    categoryId: catId,
+    amount,
+    note: req.body?.note || null,
+    createdAtMs: Date.now(),
+  });
   if (amount > 0) {
     await createNotification({
       tripId: trip.id,
@@ -110,43 +127,61 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
       targetScreen: "budget",
     });
   }
-  res.json(budgetSnapshot(trip.id, trip.budget_total));
+  res.json(await budgetSnapshot(trip.id, trip.budget_total));
 });
 
-function personalSnapshot(tripId: string, userId: string) {
-  const pb = db.prepare("SELECT planned_total FROM personal_budgets WHERE trip_id = ? AND user_id = ?").get(tripId, userId) as any;
-  const cats = db.prepare("SELECT * FROM personal_budget_categories WHERE trip_id = ? AND user_id = ? ORDER BY order_index ASC").all(tripId, userId) as any[];
+// Personal budgets: fully separate per-member spending, private to each member. Categories/
+// transactions live in flat per-trip collections (matching the destinations/attractions
+// pattern) so no composite index is ever required — reads for a given user filter in memory.
+async function fetchPersonalCategories(tripId: string, userId: string) {
+  const snap = await tripRef(tripId).collection("personalBudgetCategories").where("userId", "==", userId).get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any)).sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+async function fetchPersonalTransactions(tripId: string) {
+  const snap = await tripRef(tripId).collection("personalBudgetTransactions").get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
+}
+
+async function personalSnapshot(tripId: string, userId: string) {
+  const [pbDoc, cats, allTxs] = await Promise.all([
+    tripRef(tripId).collection("personalBudgets").doc(userId).get(),
+    fetchPersonalCategories(tripId, userId),
+    fetchPersonalTransactions(tripId),
+  ]);
+  const catIds = new Set(cats.map((c) => c.id));
+  const spentByCategory = new Map<string, number>();
+  for (const t of allTxs) {
+    if (catIds.has(t.categoryId)) spentByCategory.set(t.categoryId, (spentByCategory.get(t.categoryId) || 0) + t.amount);
+  }
   const categories = cats.map((c) => {
-    const spent = (db.prepare("SELECT COALESCE(SUM(amount), 0) s FROM personal_budget_transactions WHERE category_id = ?").get(c.id) as any).s;
+    const spent = spentByCategory.get(c.id) || 0;
     return {
       id: c.id,
       name: c.name,
-      planned: c.planned_amount,
+      planned: c.plannedAmount,
       spent,
       note: c.note,
-      percent: c.planned_amount > 0 ? Math.min(999, Math.round((spent / c.planned_amount) * 100)) : 0,
+      percent: c.plannedAmount > 0 ? Math.min(999, Math.round((spent / c.plannedAmount) * 100)) : 0,
     };
   });
   const paid = categories.reduce((s, c) => s + c.spent, 0);
-  return { total: pb?.planned_total || 0, paid, categories };
+  return { total: pbDoc.exists ? pbDoc.data()!.plannedTotal || 0 : 0, paid, categories };
 }
 
 budgetRouter.get("/personal", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  res.json(personalSnapshot(trip.id, req.userId!));
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.patch("/personal", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
   if (typeof req.body?.total === "number") {
-    db.prepare(
-      `INSERT INTO personal_budgets (trip_id, user_id, planned_total) VALUES (?, ?, ?)
-       ON CONFLICT(trip_id, user_id) DO UPDATE SET planned_total = excluded.planned_total`
-    ).run(trip.id, req.userId, req.body.total);
+    await tripRef(trip.id).collection("personalBudgets").doc(req.userId!).set({ plannedTotal: req.body.total }, { merge: true });
   }
-  res.json(personalSnapshot(trip.id, req.userId!));
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.post("/personal/categories", requireAuth, async (req: AuthedRequest, res) => {
@@ -154,53 +189,57 @@ budgetRouter.post("/personal/categories", requireAuth, async (req: AuthedRequest
   if (!trip) return;
   const { name, planned, note } = req.body || {};
   if (!name) return res.status(400).json({ error: "invalid_input" });
-  const maxOrder = (
-    db.prepare("SELECT COALESCE(MAX(order_index), -1) m FROM personal_budget_categories WHERE trip_id = ? AND user_id = ?").get(trip.id, req.userId) as any
-  ).m;
-  const id = randomUUID();
-  db.prepare(
-    `INSERT INTO personal_budget_categories (id, trip_id, user_id, order_index, name, planned_amount, note) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, trip.id, req.userId, maxOrder + 1, name, planned || 0, note || null);
-  res.json(personalSnapshot(trip.id, req.userId!));
+  const existing = await fetchPersonalCategories(trip.id, req.userId!);
+  const maxOrder = existing.reduce((m, c) => Math.max(m, c.orderIndex), -1);
+  await tripRef(trip.id).collection("personalBudgetCategories").doc(randomUUID()).set({
+    userId: req.userId,
+    orderIndex: maxOrder + 1,
+    name,
+    plannedAmount: planned || 0,
+    note: note || null,
+  });
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.patch("/personal/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const allowed: Record<string, string> = { name: "name", planned: "planned_amount", note: "note" };
-  const sets: string[] = [];
-  const vals: any[] = [];
-  for (const [k, col] of Object.entries(allowed)) {
-    if (k in (req.body || {})) {
-      sets.push(`${col} = ?`);
-      vals.push(req.body[k]);
-    }
+  const catRef = tripRef(trip.id).collection("personalBudgetCategories").doc(String(req.params.id));
+  const doc = await catRef.get();
+  if (!doc.exists || doc.data()!.userId !== req.userId) return res.status(404).json({ error: "not_found" });
+  const allowed: Record<string, string> = { name: "name", planned: "plannedAmount", note: "note" };
+  const patch: Record<string, any> = {};
+  for (const [k, field] of Object.entries(allowed)) {
+    if (k in (req.body || {})) patch[field] = req.body[k];
   }
-  if (sets.length) {
-    vals.push(req.params.id, trip.id, req.userId);
-    db.prepare(`UPDATE personal_budget_categories SET ${sets.join(", ")} WHERE id = ? AND trip_id = ? AND user_id = ?`).run(...vals);
-  }
-  res.json(personalSnapshot(trip.id, req.userId!));
+  if (Object.keys(patch).length) await catRef.update(patch);
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.delete("/personal/categories/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  db.prepare("DELETE FROM personal_budget_categories WHERE id = ? AND trip_id = ? AND user_id = ?").run(req.params.id, trip.id, req.userId);
-  res.json(personalSnapshot(trip.id, req.userId!));
+  const catRef = tripRef(trip.id).collection("personalBudgetCategories").doc(String(req.params.id));
+  const doc = await catRef.get();
+  if (doc.exists && doc.data()!.userId === req.userId) await catRef.delete();
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.post("/personal/categories/:id/transactions", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const cat = db.prepare("SELECT * FROM personal_budget_categories WHERE id = ? AND trip_id = ? AND user_id = ?").get(req.params.id, trip.id, req.userId) as any;
-  if (!cat) return res.status(404).json({ error: "not_found" });
+  const catId = String(req.params.id);
+  const catDoc = await tripRef(trip.id).collection("personalBudgetCategories").doc(catId).get();
+  if (!catDoc.exists || catDoc.data()!.userId !== req.userId) return res.status(404).json({ error: "not_found" });
   let amount = Number(req.body?.amount || 0);
   amount = req.body?.direction === "subtract" ? -Math.abs(amount) : Math.abs(amount);
-  db.prepare(`INSERT INTO personal_budget_transactions (id, category_id, amount, note) VALUES (?, ?, ?, ?)`).run(
-    randomUUID(), cat.id, amount, req.body?.note || null
-  );
-  res.json(personalSnapshot(trip.id, req.userId!));
+  await tripRef(trip.id).collection("personalBudgetTransactions").doc(randomUUID()).set({
+    categoryId: catId,
+    amount,
+    note: req.body?.note || null,
+    createdAtMs: Date.now(),
+  });
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.get("/fx-rates", requireAuth, async (_req, res) => {

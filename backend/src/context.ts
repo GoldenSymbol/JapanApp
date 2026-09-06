@@ -1,6 +1,6 @@
-import { db } from "./db.js";
 import { adminDb } from "./firebaseAdmin.js";
 import { FieldValue } from "firebase-admin/firestore";
+import { getUserName } from "./users.js";
 
 export interface TripRow {
   id: string;
@@ -39,13 +39,13 @@ export async function createNotification(params: {
   targetScreen?: string;
   targetId?: string;
 }) {
-  const actor = db.prepare("SELECT name FROM users WHERE id = ?").get(params.actorUserId) as any;
+  const actorName = await getUserName(params.actorUserId);
   await adminDb.collection("trips").doc(params.tripId).collection("notifications").add({
     type: params.type,
     title: params.title,
     body: params.body || null,
     actorUserId: params.actorUserId,
-    actorName: actor?.name || null,
+    actorName,
     targetScreen: params.targetScreen || null,
     targetId: params.targetId || null,
     createdAt: FieldValue.serverTimestamp(),
