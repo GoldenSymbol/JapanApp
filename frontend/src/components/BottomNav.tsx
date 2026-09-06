@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 const TABS = [
   { path: '/trip', label: 'מסלול' },
@@ -19,7 +20,15 @@ export function BottomNav() {
           {({ isActive }) => (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '5px 12px', cursor: 'pointer' }}>
               <div style={{ font: "600 15px 'Noto Sans Hebrew',sans-serif", color: isActive ? 'var(--text)' : 'var(--text-dim-2)' }}>{t.label}</div>
-              <div style={{ width: 20, height: 2.5, borderRadius: 2, background: isActive ? 'var(--accent)' : 'transparent' }} />
+              <div style={{ width: 20, height: 2.5, position: 'relative' }}>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-indicator"
+                    style={{ position: 'absolute', inset: 0, borderRadius: 2, background: 'var(--accent)' }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  />
+                )}
+              </div>
             </div>
           )}
         </NavLink>
