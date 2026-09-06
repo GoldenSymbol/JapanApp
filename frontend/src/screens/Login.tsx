@@ -28,7 +28,7 @@ export function Login() {
   return (
     <div className="app-shell" style={{ justifyContent: 'center', padding: '0 26px 40px' }}>
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <img src={logo} alt="Japan 2027" style={{ width: 220, height: 'auto' }} />
+        <img src={logo} alt="Japan 2027" style={{ width: 300, height: 'auto' }} />
       </div>
 
       <div style={{ marginTop: 30 }}>
