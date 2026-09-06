@@ -28,10 +28,7 @@ export function Login() {
   return (
     <div className="app-shell" style={{ justifyContent: 'center', padding: '0 26px 40px' }}>
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <img src={logo} alt="Japan 2027" style={{ width: 140, height: 'auto' }} />
-      </div>
-      <div style={{ font: "400 13.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>
-        1 באפריל – 2 במאי · מסלול משותף לכל מי שנוסע איתך.
+        <img src={logo} alt="Japan 2027" style={{ width: 220, height: 'auto' }} />
       </div>
 
       <div style={{ marginTop: 30 }}>
