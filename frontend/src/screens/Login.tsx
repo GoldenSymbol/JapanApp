@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { ApiError } from '../api';
+import logo from '../assets/logo.png';
 
 export function Login() {
   const { login } = useAuth();
@@ -26,8 +27,9 @@ export function Login() {
 
   return (
     <div className="app-shell" style={{ justifyContent: 'center', padding: '0 26px 40px' }}>
-      <div style={{ font: "400 46px/1 'Zen Old Mincho',serif", color: 'var(--accent)' }}>日本</div>
-      <div style={{ font: "600 30px/1.2 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px', marginTop: 16 }}>יפן 2027</div>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <img src={logo} alt="Japan 2027" style={{ width: 140, height: 'auto' }} />
+      </div>
       <div style={{ font: "400 13.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>
         1 באפריל – 2 במאי · מסלול משותף לכל מי שנוסע איתך.
       </div>
