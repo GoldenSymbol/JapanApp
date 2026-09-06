@@ -28,10 +28,13 @@ export function Today() {
   const [date, setDate] = useState<string | null>(null);
   const [moving, setMoving] = useState<any>(null);
   const railRef = useRef<HTMLDivElement>(null);
+  const latestReq = useRef(0);
 
   async function load(d: string | null) {
+    const reqId = ++latestReq.current;
     const q = d ? `?date=${d}` : '';
     const res = await api(`/today${q}`);
+    if (reqId !== latestReq.current) return; // a newer request already superseded this one
     setData(res);
     if (!d) {
       if (!res.destination && res.days.length) setDate(res.days[0].date);

@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isMember(tripId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/trips/$(tripId)/members/$(request.auth.uid));
+    }
+
+    match /trips/{tripId} {
+      // Trip metadata, membership, destinations, attractions, and invites are all written
+      // exclusively by the backend (via the Admin SDK, which bypasses these rules entirely) —
+      // the client only ever reads them directly.
+      allow read: if isMember(tripId);
+      allow write: if false;
+
+      match /members/{userId} {
+        allow read: if isMember(tripId);
+        allow write: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read, write: if false;
+      }
+
+      match /destinations/{destId} {
+        allow read: if isMember(tripId);
+        allow write: if false;
+      }
+
+      match /attractions/{attrId} {
+        allow read: if isMember(tripId);
+        allow write: if false;
+
+        match /marks/{userId} {
+          allow read: if isMember(tripId);
+          allow write: if false;
+        }
+      }
+
+      match /notifications/{notifId} {
+        // Notifications themselves are only ever created by the backend. But read state
+        // (readBy) and per-user dismissal (deletedBy) are written directly from the browser
+        // for real-time sync, so this is the one place a client write actually needs to be
+        // allowed — restricted to just those two fields, and only ever growing the arrays
+        // (never removing entries or touching anything else on the document).
+        allow read: if isMember(tripId);
+        allow create, delete: if false;
+        allow update: if isMember(tripId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'deletedBy'])
+          && request.resource.data.readBy.hasAll(resource.data.readBy)
+          && request.resource.data.deletedBy.hasAll(resource.data.deletedBy);
+      }
+    }
+  }
+}

@@ -95,7 +95,7 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
     lng: coords?.lng ?? null,
     teaser: null,
   });
-  createNotification({
+  await createNotification({
     tripId: trip.id,
     actorUserId: req.userId!,
     type: "new_destination",
@@ -216,7 +216,7 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: A
     createdBy: req.userId,
     createdAtMs: Date.now(),
   });
-  createNotification({
+  await createNotification({
     tripId: trip.id,
     actorUserId: req.userId!,
     type: "new_attraction",
@@ -245,7 +245,7 @@ itineraryRouter.patch("/attractions/:id", requireAuth, async (req: AuthedRequest
   }
   if (Object.keys(patch).length) await attrRef.update(patch);
   if (rescheduling) {
-    createNotification({
+    await createNotification({
       tripId: trip.id,
       actorUserId: req.userId!,
       type: "reschedule",

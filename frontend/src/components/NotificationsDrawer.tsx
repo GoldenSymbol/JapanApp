@@ -4,7 +4,7 @@ import { Drawer } from './Drawer';
 import { useNotifications, type Notification } from '../state/NotificationsContext';
 
 function timeAgo(iso: string) {
-  const diffMs = Date.now() - new Date(iso + 'Z').getTime();
+  const diffMs = Date.now() - new Date(/[Z+]|-\d\d:\d\d$/.test(iso) ? iso : iso + 'Z').getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return 'עכשיו';
   if (mins < 60) return `לפני ${mins} דק׳`;

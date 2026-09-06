@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { db } from "./db.js";
 import { adminDb } from "./firebaseAdmin.js";
+import { FieldValue } from "firebase-admin/firestore";
 
 export interface TripRow {
   id: string;
@@ -30,7 +30,7 @@ export function genInviteCode(): string {
   return `JPN-${code}`;
 }
 
-export function createNotification(params: {
+export async function createNotification(params: {
   tripId: string;
   actorUserId: string;
   type: string;
@@ -39,19 +39,17 @@ export function createNotification(params: {
   targetScreen?: string;
   targetId?: string;
 }) {
-  const id = randomUUID();
-  db.prepare(
-    `INSERT INTO notifications (id, trip_id, actor_user_id, type, title, body, target_screen, target_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    id,
-    params.tripId,
-    params.actorUserId,
-    params.type,
-    params.title,
-    params.body || null,
-    params.targetScreen || null,
-    params.targetId || null
-  );
-  return id;
+  const actor = db.prepare("SELECT name FROM users WHERE id = ?").get(params.actorUserId) as any;
+  await adminDb.collection("trips").doc(params.tripId).collection("notifications").add({
+    type: params.type,
+    title: params.title,
+    body: params.body || null,
+    actorUserId: params.actorUserId,
+    actorName: actor?.name || null,
+    targetScreen: params.targetScreen || null,
+    targetId: params.targetId || null,
+    createdAt: FieldValue.serverTimestamp(),
+    readBy: [],
+    deletedBy: [],
+  });
 }

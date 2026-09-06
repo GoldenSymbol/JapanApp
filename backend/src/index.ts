@@ -6,7 +6,6 @@ import { authRouter } from "./routes/auth.js";
 import { tripsRouter } from "./routes/trips.js";
 import { itineraryRouter } from "./routes/itinerary.js";
 import { budgetRouter } from "./routes/budget.js";
-import { notificationsRouter } from "./routes/notifications.js";
 import { translateRouter } from "./routes/translate.js";
 import { runSeed } from "./seed.js";
 
@@ -19,7 +18,6 @@ app.use("/api/auth", authRouter);
 app.use("/api/trips", tripsRouter);
 app.use("/api", itineraryRouter);
 app.use("/api/budget", budgetRouter);
-app.use("/api/notifications", notificationsRouter);
 app.use("/api/translate", translateRouter);
 
 runSeed();

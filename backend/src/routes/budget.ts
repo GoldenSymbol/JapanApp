@@ -102,7 +102,7 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
     randomUUID(), cat.id, amount, req.body?.note || null
   );
   if (amount > 0) {
-    createNotification({
+    await createNotification({
       tripId: trip.id,
       actorUserId: req.userId!,
       type: "new_expense",

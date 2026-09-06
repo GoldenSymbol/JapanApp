@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { api } from '../api';
+import {
+  collection, query, orderBy, limit, onSnapshot, doc, updateDoc, arrayUnion, writeBatch,
+} from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuth } from './AuthContext';
 
 export interface Notification {
@@ -23,39 +26,53 @@ interface NotifState {
   markAllRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   deleteAll: () => Promise<void>;
-  refresh: () => Promise<void>;
 }
 
 const Ctx = createContext<NotifState | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { trip } = useAuth();
+  const { trip, user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast] = useState<Notification | null>(null);
-  const seenIds = useRef<Set<string>>(new Set());
   const isFirstLoad = useRef(true);
-
-  const refresh = useCallback(async () => {
-    if (!trip) return;
-    const data = await api('/notifications');
-    const list: Notification[] = data.notifications;
-    if (!isFirstLoad.current) {
-      const fresh = list.find((n) => !seenIds.current.has(n.id) && !n.read);
-      if (fresh) setToast(fresh);
-    }
-    list.forEach((n) => seenIds.current.add(n.id));
-    isFirstLoad.current = false;
-    setNotifications(list);
-    setUnreadCount(data.unreadCount);
-  }, [trip]);
+  const myId = user?.id;
 
   useEffect(() => {
-    if (!trip) return;
-    refresh();
-    const t = setInterval(refresh, 8000);
-    return () => clearInterval(t);
-  }, [trip, refresh]);
+    isFirstLoad.current = true;
+    if (!trip || !myId) { setNotifications([]); return; }
+    const q = query(collection(db, 'trips', trip.id, 'notifications'), orderBy('createdAt', 'desc'), limit(100));
+    const unsub = onSnapshot(q, (snap) => {
+      const list: Notification[] = snap.docs
+        .map((d) => {
+          const v = d.data();
+          return {
+            id: d.id,
+            type: v.type,
+            title: v.title,
+            body: v.body ?? null,
+            actorName: v.actorName ?? null,
+            targetScreen: v.targetScreen ?? null,
+            targetId: v.targetId ?? null,
+            createdAt: v.createdAt?.toDate ? v.createdAt.toDate().toISOString() : new Date().toISOString(),
+            read: (v.readBy || []).includes(myId),
+            deletedBy: v.deletedBy || [],
+          };
+        })
+        .filter((n: any) => !n.deletedBy.includes(myId))
+        .map(({ deletedBy, ...n }: any) => n);
+
+      if (!isFirstLoad.current) {
+        const added = snap.docChanges().filter((c) => c.type === 'added');
+        const fresh = added
+          .map((c) => list.find((n) => n.id === c.doc.id))
+          .find((n) => n && !n.read);
+        if (fresh) setToast(fresh);
+      }
+      isFirstLoad.current = false;
+      setNotifications(list);
+    });
+    return unsub;
+  }, [trip, myId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -64,27 +81,38 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const markRead = useCallback(async (id: string) => {
-    await api(`/notifications/${id}/read`, { method: 'POST' });
-    await refresh();
-  }, [refresh]);
+    if (!trip || !myId) return;
+    await updateDoc(doc(db, 'trips', trip.id, 'notifications', id), { readBy: arrayUnion(myId) });
+  }, [trip, myId]);
 
   const markAllRead = useCallback(async () => {
-    await api('/notifications/read-all', { method: 'POST' });
-    await refresh();
-  }, [refresh]);
+    if (!trip || !myId) return;
+    const unread = notifications.filter((n) => !n.read);
+    if (!unread.length) return;
+    const batch = writeBatch(db);
+    for (const n of unread) batch.update(doc(db, 'trips', trip.id, 'notifications', n.id), { readBy: arrayUnion(myId) });
+    await batch.commit();
+  }, [trip, myId, notifications]);
 
   const deleteNotification = useCallback(async (id: string) => {
-    await api(`/notifications/${id}`, { method: 'DELETE' });
-    await refresh();
-  }, [refresh]);
+    if (!trip || !myId) return;
+    await updateDoc(doc(db, 'trips', trip.id, 'notifications', id), { deletedBy: arrayUnion(myId) });
+  }, [trip, myId]);
 
   const deleteAll = useCallback(async () => {
-    await api('/notifications/delete-all', { method: 'POST' });
-    await refresh();
-  }, [refresh]);
+    if (!trip || !myId || !notifications.length) return;
+    const batch = writeBatch(db);
+    for (const n of notifications) batch.update(doc(db, 'trips', trip.id, 'notifications', n.id), { deletedBy: arrayUnion(myId) });
+    await batch.commit();
+  }, [trip, myId, notifications]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <Ctx.Provider value={{ notifications, unreadCount, toast, dismissToast: () => setToast(null), markRead, markAllRead, deleteNotification, deleteAll, refresh }}>
+    <Ctx.Provider value={{
+      notifications, unreadCount, toast, dismissToast: () => setToast(null),
+      markRead, markAllRead, deleteNotification, deleteAll,
+    }}>
       {children}
     </Ctx.Provider>
   );
