@@ -148,33 +148,33 @@ itineraryRouter.post("/destinations/:id/move", requireAuth, async (req: AuthedRe
   res.json({ destinations: await destinationsForTrip(trip.id) });
 });
 
+// marksByUser lives as a plain map field on the attraction doc itself (not a subcollection) so
+// that listing attractions never needs a follow-up read per attraction to know who marked what.
 async function attractionsForDestination(tripId: string, destId: string, userId: string) {
   const snap = await tripRef(tripId).collection("attractions").where("destinationId", "==", destId).get();
   const rows = snap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() } as any))
     .sort((a, b) => a.orderIndex - b.orderIndex || (a.createdAtMs || 0) - (b.createdAtMs || 0));
-  return Promise.all(
-    rows.map(async (a) => {
-      const marksSnap = await tripRef(tripId).collection("attractions").doc(a.id).collection("marks").get();
-      const marks = marksSnap.docs.map((d) => ({ userId: d.id, status: d.data().status }));
-      const mine = marks.find((m) => m.userId === userId);
-      const others = marks.filter((m) => m.userId !== userId);
-      return {
-        id: a.id,
-        nameHe: a.nameHe,
-        nameEn: a.nameEn,
-        tag: a.tag,
-        duration: a.duration,
-        day: a.day,
-        hour: a.hour,
-        note: a.note,
-        lat: a.lat,
-        lng: a.lng,
-        myStatus: mine?.status || "none",
-        othersStatus: others.map((o) => o.status),
-      };
-    })
-  );
+  return rows.map((a) => {
+    const marksByUser: Record<string, string> = a.marksByUser || {};
+    const othersStatus = Object.entries(marksByUser)
+      .filter(([uid]) => uid !== userId)
+      .map(([, status]) => status);
+    return {
+      id: a.id,
+      nameHe: a.nameHe,
+      nameEn: a.nameEn,
+      tag: a.tag,
+      duration: a.duration,
+      day: a.day,
+      hour: a.hour,
+      note: a.note,
+      lat: a.lat,
+      lng: a.lng,
+      myStatus: marksByUser[userId] || "none",
+      othersStatus,
+    };
+  });
 }
 
 itineraryRouter.get("/destinations/:id/attractions", requireAuth, async (req: AuthedRequest, res) => {
@@ -274,7 +274,7 @@ itineraryRouter.post("/attractions/:id/mark", requireAuth, async (req: AuthedReq
   const attrRef = tripRef(trip.id).collection("attractions").doc(String(req.params.id));
   const doc = await attrRef.get();
   if (!doc.exists) return res.status(404).json({ error: "not_found" });
-  await attrRef.collection("marks").doc(req.userId!).set({ status });
+  await attrRef.update({ [`marksByUser.${req.userId}`]: status });
   res.json({ attractions: await attractionsForDestination(trip.id, doc.data()!.destinationId, req.userId!) });
 });
 
@@ -307,30 +307,22 @@ itineraryRouter.get("/today", requireAuth, async (req: AuthedRequest, res) => {
       .filter((a) => !a.day)
       .sort((a, b) => a.orderIndex - b.orderIndex);
   }
-  const mapAttr = async (a: any) => {
-    const marksSnap = await tripRef(trip.id).collection("attractions").doc(a.id).collection("marks").doc(req.userId!).get();
-    return {
-      id: a.id,
-      nameHe: a.nameHe,
-      tag: a.tag,
-      duration: a.duration,
-      day: a.day,
-      hour: a.hour,
-      note: a.note,
-      myStatus: marksSnap.exists ? marksSnap.data()!.status : "none",
-    };
-  };
-
-  const [scheduledOut, unscheduledOut] = await Promise.all([
-    Promise.all(scheduled.map(mapAttr)),
-    Promise.all(unscheduled.map(mapAttr)),
-  ]);
+  const mapAttr = (a: any) => ({
+    id: a.id,
+    nameHe: a.nameHe,
+    tag: a.tag,
+    duration: a.duration,
+    day: a.day,
+    hour: a.hour,
+    note: a.note,
+    myStatus: (a.marksByUser || {})[req.userId!] || "none",
+  });
 
   res.json({
     date,
     destination: dest ? { id: dest.id, nameHe: dest.nameHe, startDate: dest.startDate, endDate: dest.endDate } : null,
     days,
-    scheduled: scheduledOut,
-    unscheduled: unscheduledOut,
+    scheduled: scheduled.map(mapAttr),
+    unscheduled: unscheduled.map(mapAttr),
   });
 });
