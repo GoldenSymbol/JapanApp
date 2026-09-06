@@ -40,7 +40,7 @@ function Converter() {
       {open && (
         <div className="card" style={{ marginTop: 10, background: 'var(--card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input className="field" style={{ flex: 1, textAlign: 'right', direction: 'ltr' }} value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <input className="field" style={{ flex: 1, textAlign: 'right', direction: 'ltr' }} value={amount} onChange={(e) => setAmount(e.target.value)} onFocus={(e) => e.target.select()} />
             <div onClick={() => { setFrom(to); setTo(from); }} style={{ cursor: 'pointer', color: 'var(--accent)', fontSize: 18, flex: 'none' }}>⇄</div>
           </div>
           <div className="section-label" style={{ padding: '14px 0 6px' }}>מ־</div>
@@ -185,7 +185,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
               <div className="section-label" style={{ paddingBottom: 6 }}>תקציב כולל (₪)</div>
-              <input className="field" style={{ fontWeight: 600 }} type="number" defaultValue={data.total} onBlur={(e) => setTotal(Number(e.target.value))} />
+              <input className="field" style={{ fontWeight: 600 }} type="number" defaultValue={data.total} onBlur={(e) => setTotal(Number(e.target.value))} onFocus={(e) => e.target.select()} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 2 }}>
               <div style={{ font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>שולם עד כה (סכום כל הקטגוריות)</div>
@@ -228,7 +228,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
           <div key={c.id} style={{ padding: '14px 0', borderTop: '1px solid var(--border-soft)' }}>
             {editing ? (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input className="field" style={{ flex: 1 }} defaultValue={c.name} onBlur={(e) => renameCat(c.id, e.target.value)} />
+                <input className="field" style={{ flex: 1 }} defaultValue={c.name} onBlur={(e) => renameCat(c.id, e.target.value)} onFocus={(e) => e.target.select()} />
                 <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", flex: 'none' }}>₪{c.spent.toLocaleString('en-US')}</div>
                 <div onClick={() => deleteCat(c.id)} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', cursor: 'pointer', flex: 'none' }}>מחק</div>
               </div>
