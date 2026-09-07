@@ -12,7 +12,7 @@ export function TopBar() {
   const [trOpen, setTrOpen] = useState(false);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7, padding: '10px 22px 8px' }}>
+    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 7, padding: 'calc(10px + env(safe-area-inset-top)) 22px 8px' }}>
       <div className="icon-btn" title="הגדרות" onClick={() => navigate('/settings')}><GearIcon /></div>
       <div className="icon-btn" title="חברים" onClick={() => navigate('/members')}><PeopleIcon /></div>
       <div className="icon-btn" title="תרגום" onClick={() => setTrOpen(true)}><TranslateIcon /></div>

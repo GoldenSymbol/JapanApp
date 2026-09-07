@@ -23,6 +23,6 @@ app.use("/api/translate", translateRouter);
 runSeed();
 
 const port = Number(process.env.PORT || 4000);
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`Japan Trip 2027 API listening on http://localhost:${port}`);
 });

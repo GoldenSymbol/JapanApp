@@ -70,7 +70,7 @@ export function Settings() {
             {user.name[0]}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input className="field" style={{ fontWeight: 600, fontSize: 15 }} defaultValue={user.name} onBlur={(e) => updateMe({ name: e.target.value })} />
+            <input className="field" style={{ fontWeight: 600, fontSize: 16 }} defaultValue={user.name} onBlur={(e) => updateMe({ name: e.target.value })} />
             <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 7, direction: 'ltr', textAlign: 'right' }}>{user.email}</div>
           </div>
         </div>
@@ -157,7 +157,7 @@ export function Settings() {
       <div style={{ padding: '26px 22px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="btn" style={{ border: '1px solid rgba(217,86,75,.4)', color: 'var(--danger)', textAlign: 'center', padding: 15 }} onClick={() => setLeaveOpen(true)}>יציאה מהטיול</div>
         <div className="btn btn-outline" style={{ textAlign: 'center', padding: 15 }} onClick={() => { logout(); navigate('/login'); }}>יציאה מהחשבון</div>
-        <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)', textAlign: 'center', paddingTop: 6 }}>גרסה 1.0 · יפן 2027</div>
+        <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)', textAlign: 'center', paddingTop: 6 }}>גרסה 1.0 · MichiPlan</div>
       </div>
 
       <AnimatePresence>

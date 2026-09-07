@@ -2,7 +2,15 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import type { MaplibreGL } from 'leaflet';
 import { maplibreGL } from '@maplibre/maplibre-gl-leaflet';
-import type { Map as MaplibreMap } from 'maplibre-gl';
+import { setWorkerUrl, type Map as MaplibreMap } from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+
+// Vite's default `?url` import of MapLibre's worker script emits it without its
+// sibling shared chunk, so the worker fails on its first import in production builds
+// — style/tile parsing (which runs on that worker) then just hangs forever with no
+// error at all. `?worker&url` routes it through Vite's worker pipeline instead,
+// producing a self-contained chunk that actually works. Must run before any Map is created.
+setWorkerUrl(maplibreWorkerUrl);
 
 const STYLE_URL = {
   light: 'https://tiles.openfreemap.org/styles/positron',
@@ -33,7 +41,22 @@ export function MapTiles({ dark }: { dark: boolean }) {
     layerRef.current = layer;
     const glMap = layer.getMaplibreMap();
     glMap.once('load', () => applyEnglishLabels(glMap));
+
+    // On some mobile browsers the Leaflet container's final pixel size isn't settled yet
+    // when the WebGL canvas is first created (e.g. dynamic viewport units resolving late),
+    // leaving the map blank until something forces a resize. A couple of follow-up resizes
+    // on the next frames are cheap and fix that without waiting on user interaction.
+    let cancelled = false;
+    const raf1 = requestAnimationFrame(() => {
+      if (cancelled) return;
+      map.invalidateSize();
+      glMap.resize();
+      requestAnimationFrame(() => { if (!cancelled) glMap.resize(); });
+    });
+
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
       map.removeLayer(layer);
       layerRef.current = null;
     };
