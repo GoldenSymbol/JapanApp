@@ -41,7 +41,7 @@ function navigationUrl(s: any, cityNameEn?: string) {
 export function City() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { destinations } = useTripData();
+  const { destinations, refresh: refreshTripData } = useTripData();
   const { dark, palette } = useTheme();
   const city = destinations.find((d) => d.id === id);
   const [spots, setSpots] = useState<any[]>([]);
@@ -64,7 +64,7 @@ export function City() {
     await api(`/destinations/${id}/attractions`, { method: 'POST', json: { ...form, day: form.day || null, hour: form.hour || null } });
     setForm({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
     setShowForm(false);
-    await loadSpots();
+    await Promise.all([loadSpots(), refreshTripData()]);
   }
   async function toggleMark(spot: any) {
     const next = spot.myStatus === 'none' ? 'done' : spot.myStatus === 'done' ? 'skipped' : 'none';
@@ -73,7 +73,7 @@ export function City() {
   }
   async function removeSpot(spotId: string) {
     await api(`/attractions/${spotId}`, { method: 'DELETE' });
-    await loadSpots();
+    await Promise.all([loadSpots(), refreshTripData()]);
   }
   async function setSpotDay(spotId: string, day: string) {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { day: day || null } });
