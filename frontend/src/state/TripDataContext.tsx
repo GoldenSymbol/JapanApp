@@ -17,6 +17,7 @@ export interface Destination {
   teaser: string | null;
   nights: number;
   attractionCount: number;
+  groupId: string;
 }
 
 interface TripDataState {

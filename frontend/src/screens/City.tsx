@@ -56,7 +56,15 @@ export function City() {
   }
   useEffect(() => { loadSpots(); }, [id]);
 
-  const days = useMemo(() => (city ? dateOptions(city.startDate, city.endDate) : []), [city]);
+  // A place visited more than once on the trip (e.g. Tokyo, then Tokyo again at the end) shares
+  // a groupId across those destination entries — so the day-picker offers every day across all
+  // of them, not just the one leg of the trip this particular entry covers.
+  const days = useMemo(() => {
+    if (!city) return [];
+    const sameGroup = destinations.filter((d) => d.groupId === city.groupId);
+    const all = sameGroup.flatMap((d) => dateOptions(d.startDate, d.endDate));
+    return [...new Set(all)].sort();
+  }, [city, destinations]);
   const doneCount = spots.filter((s) => s.myStatus === 'done').length;
 
   async function addSpot() {

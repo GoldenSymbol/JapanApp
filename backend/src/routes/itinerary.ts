@@ -36,10 +36,29 @@ async function fetchAttractions(tripId: string) {
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
 }
 
+// Two destination entries can represent the same real-world place visited twice on the trip
+// (e.g. Tokyo at the start and Tokyo again at the end) — detected automatically by matching
+// the English name, stripped of any parenthetical qualifier ("Tokyo (return)" -> "tokyo", same
+// as plain "Tokyo"). Matching entries share a group key, which is what lets attractions and
+// day-pickers pool across every visit to that place instead of being scoped to just one leg of
+// the trip. A destination with no English name (or one that matches nothing else) is its own
+// group of one, keyed by its own id so it never accidentally merges with another blank one.
+function normalizeCityName(name: string | undefined | null): string {
+  return (name || "").replace(/\(.*?\)/g, "").trim().toLowerCase();
+}
+function groupIdOf(d: any): string {
+  return normalizeCityName(d.nameEn) || d.id;
+}
+
 async function destinationsForTrip(tripId: string) {
   const [dests, attrs] = await Promise.all([fetchDestinations(tripId), fetchAttractions(tripId)]);
-  const counts = new Map<string, number>();
-  for (const a of attrs) counts.set(a.destinationId, (counts.get(a.destinationId) || 0) + 1);
+  const countsByDest = new Map<string, number>();
+  for (const a of attrs) countsByDest.set(a.destinationId, (countsByDest.get(a.destinationId) || 0) + 1);
+  const groupCounts = new Map<string, number>();
+  for (const d of dests) {
+    const g = groupIdOf(d);
+    groupCounts.set(g, (groupCounts.get(g) || 0) + (countsByDest.get(d.id) || 0));
+  }
   return dests.map((d) => ({
     id: d.id,
     order: d.orderIndex,
@@ -54,8 +73,17 @@ async function destinationsForTrip(tripId: string) {
     lng: d.lng,
     teaser: d.teaser,
     nights: nightsBetween(d.startDate, d.endDate),
-    attractionCount: counts.get(d.id) || 0,
+    attractionCount: groupCounts.get(groupIdOf(d)) || 0,
+    groupId: groupIdOf(d),
   }));
+}
+
+// All destination ids that share destId's group (including destId itself).
+async function groupDestinationIds(tripId: string, destId: string): Promise<string[]> {
+  const dests = await fetchDestinations(tripId);
+  const target = dests.find((d) => d.id === destId);
+  const groupId = target ? groupIdOf(target) : destId;
+  return dests.filter((d) => groupIdOf(d) === groupId).map((d) => d.id);
 }
 
 async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
@@ -150,10 +178,13 @@ itineraryRouter.post("/destinations/:id/move", requireAuth, async (req: AuthedRe
 
 // marksByUser lives as a plain map field on the attraction doc itself (not a subcollection) so
 // that listing attractions never needs a follow-up read per attraction to know who marked what.
+// Attractions are pooled across every destination entry in destId's group, so a place visited
+// twice on the trip (e.g. Tokyo, then Tokyo again at the end) shows the same shared list both times.
 async function attractionsForDestination(tripId: string, destId: string, userId: string) {
-  const snap = await tripRef(tripId).collection("attractions").where("destinationId", "==", destId).get();
-  const rows = snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() } as any))
+  const groupIds = await groupDestinationIds(tripId, destId);
+  const attrs = await fetchAttractions(tripId);
+  const rows = attrs
+    .filter((a) => groupIds.includes(a.destinationId))
     .sort((a, b) => a.orderIndex - b.orderIndex || (a.createdAtMs || 0) - (b.createdAtMs || 0));
   return rows.map((a) => {
     const marksByUser: Record<string, string> = a.marksByUser || {};
@@ -192,8 +223,11 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: A
   const dest = destDoc.data()!;
   const { nameHe, nameEn, tag, duration, day, hour, lat, lng, note } = req.body || {};
   if (!nameHe) return res.status(400).json({ error: "invalid_input" });
-  const existing = await tripRef(trip.id).collection("attractions").where("destinationId", "==", id).get();
-  const maxOrder = existing.docs.reduce((m, d) => Math.max(m, d.data().orderIndex ?? -1), -1);
+  const groupIds = await groupDestinationIds(trip.id, id);
+  const existingAttrs = await fetchAttractions(trip.id);
+  const maxOrder = existingAttrs
+    .filter((a) => groupIds.includes(a.destinationId))
+    .reduce((m, a) => Math.max(m, a.orderIndex ?? -1), -1);
   let coordLat = lat ?? null;
   let coordLng = lng ?? null;
   if (coordLat == null || coordLng == null) {
@@ -232,8 +266,9 @@ itineraryRouter.post("/destinations/:id/attractions/reorder", requireAuth, async
   if (!trip) return;
   const destId = String(req.params.id);
   const orderedIds: string[] = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : [];
-  const existing = await tripRef(trip.id).collection("attractions").where("destinationId", "==", destId).get();
-  const validIds = new Set(existing.docs.map((d) => d.id));
+  const groupIds = await groupDestinationIds(trip.id, destId);
+  const existingAttrs = await fetchAttractions(trip.id);
+  const validIds = new Set(existingAttrs.filter((a) => groupIds.includes(a.destinationId)).map((a) => a.id));
   if (!orderedIds.length || orderedIds.some((id) => !validIds.has(id))) {
     return res.status(400).json({ error: "invalid_input" });
   }

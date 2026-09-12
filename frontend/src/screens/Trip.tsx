@@ -136,6 +136,9 @@ export function Trip() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               <input className="field" placeholder="שם היעד" value={draft.nameHe} onChange={(e) => setDraft({ ...draft, nameHe: e.target.value })} />
               <input className="field" placeholder="שם באנגלית (משפר דיוק במפה) — אופציונלי" dir="ltr" value={draft.nameEn} onChange={(e) => setDraft({ ...draft, nameEn: e.target.value })} />
+              <div style={{ font: "400 11px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
+                אם חוזרים לאותו מקום בהמשך הטיול, השתמשו באותו שם באנגלית (למשל "Tokyo" גם ב"טוקיו" וגם ב"טוקיו (חזרה)") — כך האטרקציות והתאריכים יתמזגו אוטומטית בין שתי הפעמים.
+              </div>
               <div style={{ display: 'flex', gap: 7 }}>
                 <input className="field" type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} />
                 <input className="field" type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} />
