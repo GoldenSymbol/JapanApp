@@ -227,6 +227,23 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: A
   res.json({ attractions: await attractionsForDestination(trip.id, id, req.userId!) });
 });
 
+itineraryRouter.post("/destinations/:id/attractions/reorder", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const destId = String(req.params.id);
+  const orderedIds: string[] = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : [];
+  const existing = await tripRef(trip.id).collection("attractions").where("destinationId", "==", destId).get();
+  const validIds = new Set(existing.docs.map((d) => d.id));
+  if (!orderedIds.length || orderedIds.some((id) => !validIds.has(id))) {
+    return res.status(400).json({ error: "invalid_input" });
+  }
+  const batch = adminDb.batch();
+  const attrCol = tripRef(trip.id).collection("attractions");
+  orderedIds.forEach((attrId, i) => batch.update(attrCol.doc(attrId), { orderIndex: i }));
+  await batch.commit();
+  res.json({ attractions: await attractionsForDestination(trip.id, destId, req.userId!) });
+});
+
 itineraryRouter.patch("/attractions/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;

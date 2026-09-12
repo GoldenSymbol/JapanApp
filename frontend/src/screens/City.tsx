@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
-import { NavigationIcon } from '../components/Icons';
+import { NavigationIcon, DragHandleIcon } from '../components/Icons';
 
 export const TAGS: Record<string, { label: string; color: string }> = {
   park: { label: 'פארק', color: '#7FB069' },
@@ -83,8 +83,19 @@ export function City() {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { hour: hour || null } });
     await loadSpots();
   }
+  async function setSpotName(spotId: string, patch: { nameHe?: string; nameEn?: string }) {
+    await api(`/attractions/${spotId}`, { method: 'PATCH', json: patch });
+    await loadSpots();
+  }
+  async function setSpotTag(spotId: string, tag: string) {
+    await api(`/attractions/${spotId}`, { method: 'PATCH', json: { tag } });
+    await loadSpots();
+  }
   function placeOnMap(spotId: string) {
     navigate('/map', { state: { cityId: id, placeAttractionId: spotId } });
+  }
+  async function saveOrder(orderedSpots: any[]) {
+    await api(`/destinations/${id}/attractions/reorder`, { method: 'POST', json: { orderedIds: orderedSpots.map((s) => s.id) } });
   }
 
   if (!city) return null;
@@ -160,61 +171,119 @@ export function City() {
           </div>
         )}
 
-        <AnimatePresence initial={false}>
-        {spots.map((s) => (
-          <motion.div key={s.id} layout
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: s.myStatus === 'skipped' ? 0.5 : 1, y: 0 }}
-            exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 340 }}
-            style={{ display: 'flex', gap: 12, padding: '16px 0', borderTop: '1px solid var(--border-soft)' }}>
-            <div onClick={() => toggleMark(s)} style={{
-              width: 24, height: 24, flex: 'none', marginTop: 2, borderRadius: 8, cursor: 'pointer',
-              border: `1.5px solid ${s.myStatus === 'done' ? 'var(--accent)' : 'var(--border)'}`,
-              background: s.myStatus === 'done' ? 'var(--accent)' : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600, fontSize: 13,
-            }}>
-              {s.myStatus === 'done' ? '✓' : s.myStatus === 'skipped' ? '✕' : ''}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ font: "600 16px/1.3 'Noto Sans Hebrew',sans-serif", textDecoration: s.myStatus === 'skipped' ? 'line-through' : 'none' }}>{s.nameHe}</div>
-                {s.nameEn && <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>{s.nameEn}</div>}
-              </div>
-              {s.note && <div style={{ font: "400 13px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{s.note}</div>}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                {s.duration && <span className="pill">{DURATIONS.find((d) => d.key === s.duration)?.label || s.duration}</span>}
-                <span className="pill" style={{ border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{TAGS[s.tag]?.label || s.tag}</span>
-                {(s.day || s.hour) && <span dir="ltr" className="pill" style={{ border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
-                <a href={navigationUrl(s, city.nameEn)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                  className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', textDecoration: 'none' }}>
-                  <NavigationIcon /> ניווט
-                </a>
-                {s.othersStatus?.length > 0 && (
-                  <span className="pill" style={{ color: 'var(--text-dim)' }}>בת/בן הזוג {s.othersStatus[0] === 'done' ? '✓' : s.othersStatus[0] === 'skipped' ? '✕' : ''}</span>
-                )}
-                {!s.lat && (
-                  <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--danger)', color: 'var(--danger)', background: 'transparent' }} onClick={() => placeOnMap(s.id)}>
-                    לא ממוקם — סמן מיקום
-                  </span>
-                )}
-                {editing && s.lat && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={() => placeOnMap(s.id)}>עדכן מיקום</span>}
-                {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={() => removeSpot(s.id)}>הסר</span>}
-              </div>
-              {editing && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 10 }}>
-                  <div onClick={() => setSpotDay(s.id, '')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${!s.day ? 'var(--accent)' : 'var(--border)'}`, color: !s.day ? 'var(--accent)' : 'var(--text-dim)' }}>בלי יום</div>
-                  {days.map((d) => (
-                    <div key={d} onClick={() => setSpotDay(s.id, d)} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${s.day === d ? 'var(--accent)' : 'var(--border)'}`, color: s.day === d ? 'var(--accent)' : 'var(--text-dim)' }}>{dayLabel(d)}</div>
-                  ))}
-                  <input className="field" style={{ width: 66, flex: 'none', padding: '5px 10px', textAlign: 'center' }} placeholder="שעה" defaultValue={s.hour || ''} onBlur={(e) => setSpotHour(s.id, e.target.value)} />
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-        </AnimatePresence>
+        <Reorder.Group as="div" axis="y" values={spots} onReorder={setSpots} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          <AnimatePresence initial={false}>
+            {spots.map((s) => (
+              <AttractionRow
+                key={s.id}
+                s={s}
+                editing={editing}
+                days={days}
+                city={city}
+                onDragEnd={() => saveOrder(spots)}
+                onToggleMark={() => toggleMark(s)}
+                onRemove={() => removeSpot(s.id)}
+                onPlaceOnMap={() => placeOnMap(s.id)}
+                onSetDay={(d: string) => setSpotDay(s.id, d)}
+                onSetHour={(h: string) => setSpotHour(s.id, h)}
+                onSetName={(patch: { nameHe?: string; nameEn?: string }) => setSpotName(s.id, patch)}
+                onSetTag={(tag: string) => setSpotTag(s.id, tag)}
+              />
+            ))}
+          </AnimatePresence>
+        </Reorder.Group>
       </div>
     </div>
+  );
+}
+
+function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag }: {
+  s: any; editing: boolean; days: string[]; city: any; onDragEnd: () => void;
+  onToggleMark: () => void; onRemove: () => void; onPlaceOnMap: () => void;
+  onSetDay: (d: string) => void; onSetHour: (h: string) => void;
+  onSetName: (patch: { nameHe?: string; nameEn?: string }) => void; onSetTag: (tag: string) => void;
+}) {
+  const dragControls = useDragControls();
+  return (
+    <Reorder.Item
+      value={s}
+      as="div"
+      dragListener={false}
+      dragControls={dragControls}
+      onDragEnd={onDragEnd}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: s.myStatus === 'skipped' ? 0.5 : 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+      transition={{ type: 'spring', damping: 30, stiffness: 340 }}
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '16px 0', borderTop: '1px solid var(--border-soft)', background: 'var(--bg)' }}
+    >
+      {editing && (
+        <div onPointerDown={(e) => dragControls.start(e)}
+          style={{ touchAction: 'none', cursor: 'grab', color: 'var(--text-dim-2)', flex: 'none', marginTop: 3, display: 'flex', alignItems: 'center' }}>
+          <DragHandleIcon />
+        </div>
+      )}
+      <div onClick={onToggleMark} style={{
+        width: 24, height: 24, flex: 'none', marginTop: 2, borderRadius: 8, cursor: 'pointer',
+        border: `1.5px solid ${s.myStatus === 'done' ? 'var(--accent)' : 'var(--border)'}`,
+        background: s.myStatus === 'done' ? 'var(--accent)' : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600, fontSize: 13,
+      }}>
+        {s.myStatus === 'done' ? '✓' : s.myStatus === 'skipped' ? '✕' : ''}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {editing ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input className="field" style={{ fontWeight: 600 }} defaultValue={s.nameHe}
+              onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== s.nameHe) onSetName({ nameHe: v }); }} />
+            <input className="field" dir="ltr" placeholder="שם באנגלית" defaultValue={s.nameEn || ''}
+              onBlur={(e) => { if (e.target.value !== s.nameEn) onSetName({ nameEn: e.target.value }); }} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {Object.entries(TAGS).map(([key, t]) => (
+                <div key={key} onClick={() => onSetTag(key)}
+                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
+                    border: `1px solid ${s.tag === key ? t.color : 'var(--border)'}`, color: s.tag === key ? t.color : 'var(--text-dim)' }}>
+                  {t.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ font: "600 16px/1.3 'Noto Sans Hebrew',sans-serif", textDecoration: s.myStatus === 'skipped' ? 'line-through' : 'none' }}>{s.nameHe}</div>
+            {s.nameEn && <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>{s.nameEn}</div>}
+          </div>
+        )}
+        {s.note && <div style={{ font: "400 13px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{s.note}</div>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {s.duration && <span className="pill">{DURATIONS.find((d) => d.key === s.duration)?.label || s.duration}</span>}
+          {!editing && <span className="pill" style={{ border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{TAGS[s.tag]?.label || s.tag}</span>}
+          {(s.day || s.hour) && <span dir="ltr" className="pill" style={{ border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
+          <a href={navigationUrl(s, city.nameEn)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+            className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', textDecoration: 'none' }}>
+            <NavigationIcon /> ניווט
+          </a>
+          {s.othersStatus?.length > 0 && (
+            <span className="pill" style={{ color: 'var(--text-dim)' }}>בת/בן הזוג {s.othersStatus[0] === 'done' ? '✓' : s.othersStatus[0] === 'skipped' ? '✕' : ''}</span>
+          )}
+          {!s.lat && (
+            <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--danger)', color: 'var(--danger)', background: 'transparent' }} onClick={onPlaceOnMap}>
+              לא ממוקם — סמן מיקום
+            </span>
+          )}
+          {editing && s.lat && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onPlaceOnMap}>עדכן מיקום</span>}
+          {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onRemove}>הסר</span>}
+        </div>
+        {editing && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 10 }}>
+            <div onClick={() => onSetDay('')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${!s.day ? 'var(--accent)' : 'var(--border)'}`, color: !s.day ? 'var(--accent)' : 'var(--text-dim)' }}>בלי יום</div>
+            {days.map((d) => (
+              <div key={d} onClick={() => onSetDay(d)} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${s.day === d ? 'var(--accent)' : 'var(--border)'}`, color: s.day === d ? 'var(--accent)' : 'var(--text-dim)' }}>{dayLabel(d)}</div>
+            ))}
+            <input className="field" style={{ width: 66, flex: 'none', padding: '5px 10px', textAlign: 'center' }} placeholder="שעה" defaultValue={s.hour || ''} onBlur={(e) => onSetHour(e.target.value)} />
+          </div>
+        )}
+      </div>
+    </Reorder.Item>
   );
 }
