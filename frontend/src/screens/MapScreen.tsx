@@ -146,6 +146,16 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   const [spots, setSpots] = useState<any[]>([]);
   const [route, setRoute] = useState<string[]>([]);
   const city = destinations.find((d) => d.id === cityId);
+  // A place visited more than once (e.g. Tokyo, then Tokyo again at the end) shares a groupId —
+  // show it once in the city switcher instead of once per visit, since they're the same place.
+  const uniqueCities = useMemo(() => {
+    const seen = new Set<string>();
+    return destinations.filter((d) => {
+      if (seen.has(d.groupId)) return false;
+      seen.add(d.groupId);
+      return true;
+    });
+  }, [destinations]);
 
   async function refreshSpots() {
     if (!cityId) return;
@@ -201,10 +211,10 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   return (
     <>
       <div style={{ display: 'flex', gap: 7, overflow: 'auto', padding: '0 22px 14px' }}>
-        {destinations.map((c) => (
+        {uniqueCities.map((c) => (
           <div key={c.id} onClick={() => setCityId(c.id)}
             style={{ flex: 'none', borderRadius: 999, padding: '8px 14px', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap',
-              border: `1px solid ${cityId === c.id ? 'var(--accent)' : 'var(--border)'}`, color: cityId === c.id ? 'var(--accent)' : 'var(--text)' }}>
+              border: `1px solid ${city.groupId === c.groupId ? 'var(--accent)' : 'var(--border)'}`, color: city.groupId === c.groupId ? 'var(--accent)' : 'var(--text)' }}>
             {c.nameHe}
           </div>
         ))}
