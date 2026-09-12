@@ -9,7 +9,7 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <TopBar />
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative', paddingBottom: 'calc(78px + env(safe-area-inset-bottom))' }}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
