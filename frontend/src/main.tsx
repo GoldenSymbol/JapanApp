@@ -19,3 +19,10 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 )
+
+// Let React paint at least one frame before swapping away the static
+// pre-JS splash (in index.html), so there's never a blank flash between it
+// and React's own loading screen.
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  document.getElementById('initial-splash')?.remove();
+}));

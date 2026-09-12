@@ -21,6 +21,31 @@
          phone-sized screens via max-height so a landscape tablet or a resized desktop window
          — which have plenty of room for this narrow layout anyway — aren't blocked too. Inlined
          here (not in the app's own stylesheet) so it works even before the JS bundle loads. */
+      #initial-splash {
+        position: fixed; inset: 0; z-index: 9999; background: #14161A;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #initial-splash svg { display: block; width: 200px; height: auto; overflow: visible; }
+      .jl-sun, .jl-gate, .jl-mountain, .jl-line { transform-box: fill-box; transform-origin: center; animation-fill-mode: both; animation-timing-function: cubic-bezier(.4,0,.2,1); }
+      .jl-sun { animation-name: jl-sun-in; animation-duration: 850ms; }
+      .jl-gate { animation-name: jl-rise; animation-duration: 850ms; animation-delay: 340ms; }
+      .jl-mountain { animation-name: jl-rise; animation-duration: 900ms; animation-delay: 700ms; }
+      .jl-line { animation-name: jl-line-in; animation-duration: 650ms; }
+      .jl-line1 { animation-delay: 1250ms; }
+      .jl-line2 { animation-delay: 1420ms; }
+      .jl-line3 { animation-delay: 1590ms; }
+      .jl-status { display: flex; gap: 6px; height: 8px; margin-top: 16px; justify-content: center; animation: jl-status-in 500ms 2300ms both; }
+      .jl-status i { width: 5px; height: 5px; border-radius: 50%; background: #CE3C37; animation: jl-dot 1800ms 2300ms infinite ease-in-out; }
+      .jl-status i:nth-child(2) { animation-delay: 2450ms; }
+      .jl-status i:nth-child(3) { animation-delay: 2600ms; }
+      @keyframes jl-sun-in { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }
+      @keyframes jl-rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+      @keyframes jl-line-in { from { opacity:0; transform:scaleX(.65); } to { opacity:1; transform:scaleX(1); } }
+      @keyframes jl-status-in { from { opacity:0; } to { opacity:1; } }
+      @keyframes jl-dot { 0%, 80%, 100% { opacity:.3; } 40% { opacity:1; } }
+      @media (prefers-reduced-motion: reduce) {
+        #initial-splash *, #initial-splash svg * { animation:none !important; opacity:1; transform:none; }
+      }
       .landscape-lock { display: none; }
       @media (orientation: landscape) and (max-height: 500px) {
         html, body { overflow: hidden; }
@@ -41,6 +66,31 @@
     </style>
   </head>
   <body>
+    <div id="initial-splash">
+      <div>
+        <svg viewBox="140 160 980 960" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <g class="jl-sun"><path d="M332 650 A326 326 0 1 1 922 650Z" fill="#CE3C37"></path></g>
+          <g class="jl-mountain">
+            <path d="M166 739 C320 644 467 554 592 408 L626 415 L663 408 C785 556 930 642 1089 739 C1024 741 973 725 921 708 L765 762 L489 762 L334 708 C277 730 222 741 166 739Z" fill="#293949"></path>
+            <path d="M334 708 L494 603 L476 661 L626 621 L776 660 L757 603 L921 708 L765 762 L489 762Z" fill="#1D2935"></path>
+            <path d="M451 552 C508 500 550 460 592 408 L626 415 L663 408 C705 459 750 509 803 552 L717 525 L739 581 L660 523 L622 594 L583 523 L508 582 L528 527Z" fill="#F8F6EE" stroke="#293949" stroke-width="8" stroke-linejoin="round"></path>
+          </g>
+          <g class="jl-gate" fill="#F05243">
+            <path d="M495 724 L531 724 L532 971 L470 971Z"></path>
+            <path d="M721 724 L756 724 L783 971 L721 971Z"></path>
+            <path d="M424 762 H829 V798 H424Z" fill="#FF604F"></path>
+            <path d="M425 696 H827 L818 732 H435Z" fill="#FF604F"></path>
+            <path d="M384 650 C477 697 777 697 870 650 C856 696 851 704 803 708 H451 C405 704 397 696 384 650Z" fill="#FC5948"></path>
+          </g>
+          <g fill="none" stroke="#3D6076" stroke-width="19" stroke-linecap="round">
+            <path class="jl-line jl-line1" d="M400 1004 H855"></path>
+            <path class="jl-line jl-line2" d="M495 1041 H760"></path>
+            <path class="jl-line jl-line3" d="M564 1077 H690"></path>
+          </g>
+        </svg>
+        <span class="jl-status" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+    </div>
     <div id="root"></div>
     <div class="landscape-lock">סובבו את המכשיר בחזרה למצב אנכי כדי להשתמש באפליקציה</div>
     <script type="module" src="/src/main.tsx"></script>
