@@ -15,9 +15,34 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;500;600;700&family=Zen+Old+Mincho:wght@400;600&display=swap" rel="stylesheet">
     <title>MichiPlan</title>
+    <style>
+      /* Portrait-only lock: iOS Safari (and most mobile browsers) don't honor the manifest's
+         orientation field for web content, so this is the actual enforcement. Scoped to
+         phone-sized screens via max-height so a landscape tablet or a resized desktop window
+         — which have plenty of room for this narrow layout anyway — aren't blocked too. Inlined
+         here (not in the app's own stylesheet) so it works even before the JS bundle loads. */
+      .landscape-lock { display: none; }
+      @media (orientation: landscape) and (max-height: 500px) {
+        html, body { overflow: hidden; }
+        .landscape-lock {
+          display: flex;
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          background: #14161A;
+          color: #F6F4EF;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 24px;
+          font: 500 15px/1.6 'Noto Sans Hebrew', sans-serif;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div class="landscape-lock">סובבו את המכשיר בחזרה למצב אנכי כדי להשתמש באפליקציה 📱</div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
