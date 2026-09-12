@@ -11,7 +11,7 @@ const TABS = [
 export function BottomNav() {
   return (
     <div style={{
-      position: 'sticky', bottom: 0, left: 0, right: 0, padding: '14px 14px 26px',
+      position: 'sticky', bottom: 0, left: 0, right: 0, padding: '14px 14px calc(10px + env(safe-area-inset-bottom))',
       background: 'color-mix(in srgb, var(--bg) 82%, transparent)', backdropFilter: 'blur(12px)',
       borderTop: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-around', zIndex: 20,
     }}>
