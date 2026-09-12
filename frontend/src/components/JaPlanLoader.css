@@ -1,0 +1,23 @@
+.japlan-loader { display: inline-flex; flex-direction: column; align-items: center; gap: 16px; }
+.japlan-loader svg { display: block; width: 100%; height: auto; overflow: visible; }
+.jl-sun, .jl-gate, .jl-mountain, .jl-line { transform-box: fill-box; transform-origin: center; animation-fill-mode: both; animation-timing-function: cubic-bezier(.4,0,.2,1); }
+.jl-sun { animation-name: jl-sun-in; animation-duration: 850ms; }
+.jl-gate { animation-name: jl-rise; animation-duration: 850ms; animation-delay: 340ms; }
+.jl-mountain { animation-name: jl-rise; animation-duration: 900ms; animation-delay: 700ms; }
+.jl-line { animation-name: jl-line-in; animation-duration: 650ms; }
+.jl-line1 { animation-delay: 1250ms; }
+.jl-line2 { animation-delay: 1420ms; }
+.jl-line3 { animation-delay: 1590ms; }
+.jl-status { display: flex; gap: 6px; height: 8px; animation: jl-status-in 500ms 2300ms both; }
+.jl-status i { width: 5px; height: 5px; border-radius: 50%; background: #CE3C37; animation: jl-dot 1800ms 2300ms infinite ease-in-out; }
+.jl-status i:nth-child(2) { animation-delay: 2450ms; }
+.jl-status i:nth-child(3) { animation-delay: 2600ms; }
+.jl-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@keyframes jl-sun-in { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }
+@keyframes jl-rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes jl-line-in { from { opacity:0; transform:scaleX(.65); } to { opacity:1; transform:scaleX(1); } }
+@keyframes jl-status-in { from { opacity:0; } to { opacity:1; } }
+@keyframes jl-dot { 0%, 80%, 100% { opacity:.3; } 40% { opacity:1; } }
+@media (prefers-reduced-motion: reduce) {
+ .japlan-loader *, .japlan-loader svg * { animation:none !important; opacity:1; transform:none; }
+}

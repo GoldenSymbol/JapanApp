@@ -3,6 +3,7 @@ import { useAuth } from './state/AuthContext';
 import { NotificationsProvider } from './state/NotificationsContext';
 import { TripDataProvider } from './state/TripDataContext';
 import { AppLayout } from './components/AppLayout';
+import { JaPlanLoader } from './components/JaPlanLoader';
 
 import { Login } from './screens/Login';
 import { Signup } from './screens/Signup';
@@ -19,7 +20,7 @@ import { Members } from './screens/Members';
 function Splash() {
   return (
     <div className="app-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ font: "400 46px/1 'Zen Old Mincho',serif", color: 'var(--accent)' }}>日本</div>
+      <JaPlanLoader size={200} />
     </div>
   );
 }
