@@ -77,7 +77,8 @@ input:focus { outline: none; }
 .app-shell {
   max-width: 480px;
   margin: 0 auto;
-  height: 100dvh;
+  height: 100vh;
+  height: 100svh;
   display: flex;
   flex-direction: column;
   position: relative;
