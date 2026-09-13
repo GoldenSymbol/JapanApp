@@ -15,7 +15,8 @@ export function BottomNav() {
       position: 'fixed', left: 16, right: 16, bottom: 'calc(16px + env(safe-area-inset-bottom))',
       display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: 4,
       padding: 6, borderRadius: 999, zIndex: 20,
-      background: 'color-mix(in srgb, var(--bg) 88%, transparent)', backdropFilter: 'blur(18px)',
+      background: 'color-mix(in srgb, var(--bg) 88%, transparent)',
+      backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
       border: '1px solid var(--border-soft)', boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
     }}>
       {TABS.map(({ path, Icon }) => (
