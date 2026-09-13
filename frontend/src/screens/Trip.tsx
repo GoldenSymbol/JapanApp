@@ -61,7 +61,7 @@ export function Trip() {
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 24px' }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '12px 22px 20px' }}>
         <div>
           <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>המסלול שלי</div>

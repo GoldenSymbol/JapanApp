@@ -23,6 +23,15 @@ export function AppLayout() {
           </motion.div>
         </AnimatePresence>
       </div>
+      <div style={{
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 19,
+        height: 'calc(130px + env(safe-area-inset-bottom))',
+        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        maskImage: 'linear-gradient(to top, black 35%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to top, black 35%, transparent 100%)',
+        background: 'linear-gradient(to top, color-mix(in srgb, var(--bg) 55%, transparent), transparent)',
+        pointerEvents: 'none',
+      }} />
       <BottomNav />
       <Toast />
     </div>

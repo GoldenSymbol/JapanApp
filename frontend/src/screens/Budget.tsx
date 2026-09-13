@@ -292,7 +292,7 @@ export function Budget() {
   const [mode, setMode] = useState<'general' | 'personal'>('general');
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 22px 24px' }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 22px calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ padding: '12px 0 20px' }}>
         <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>תקציב</div>
       </div>

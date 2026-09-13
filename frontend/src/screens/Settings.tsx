@@ -55,7 +55,7 @@ export function Settings() {
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 24px' }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ padding: '6px 22px 0' }}>
         <div onClick={() => navigate('/today')} style={{ font: "500 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', padding: '8px 0' }}>→ חזרה</div>
       </div>

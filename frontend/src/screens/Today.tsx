@@ -99,7 +99,7 @@ export function Today() {
   const rest = scheduled.slice(1);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 24px' }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ padding: '12px 22px 14px' }}>
         <div style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', letterSpacing: '.8px' }}>{countdown(date)}</div>
         <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px', marginTop: 8 }}>
