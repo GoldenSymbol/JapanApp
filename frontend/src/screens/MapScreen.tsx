@@ -51,6 +51,21 @@ export function MapScreen() {
   }, [destinations, cityId]);
 
   const points = destinations.filter((d) => d.lat && d.lng).map((d) => [d.lat!, d.lng!] as [number, number]);
+
+  // A place visited more than once (e.g. Tokyo at the start and again at the end) would otherwise
+  // get one marker per visit stacked on the exact same coordinates, with only the last-drawn one
+  // (highest stop number) visible — hiding the earlier visit entirely. Grouping by groupId gives
+  // each real-world place a single pin listing every stop number it corresponds to.
+  const countryMarkers = useMemo(() => {
+    const byGroup = new Map<string, { id: string; nameHe: string; colorKey: string; lat: number; lng: number; orders: number[] }>();
+    destinations.forEach((d, i) => {
+      if (!d.lat || !d.lng) return;
+      const existing = byGroup.get(d.groupId);
+      if (existing) existing.orders.push(i + 1);
+      else byGroup.set(d.groupId, { id: d.id, nameHe: d.nameHe, colorKey: d.colorKey, lat: d.lat, lng: d.lng, orders: [i + 1] });
+    });
+    return [...byGroup.values()];
+  }, [destinations]);
   const routeColor = '#D9564B';
 
   const legs = destinations
@@ -99,11 +114,11 @@ export function MapScreen() {
                     pathOptions={{ color: routeColor, weight: isFlight ? 2 : 2.6, dashArray: isFlight ? '5 6' : undefined, opacity: isFlight ? 0.8 : 1 }} />
                 );
               })}
-              {destinations.map((d, i) => d.lat && d.lng ? (
-                <Marker key={d.id} position={[d.lat, d.lng]}
-                  icon={pinIcon({ name: d.nameHe, dotBg: d.colorKey, dotBorder: '#F6F4EF', dotText: String(i + 1), size: 20, dark })}
-                  eventHandlers={{ click: () => navigate(`/city/${d.id}`) }} />
-              ) : null)}
+              {countryMarkers.map((m) => (
+                <Marker key={m.id} position={[m.lat, m.lng]}
+                  icon={pinIcon({ name: m.nameHe, dotBg: m.colorKey, dotBorder: '#F6F4EF', dotText: m.orders.join('·'), size: m.orders.length > 1 ? 25 : 20, dark })}
+                  eventHandlers={{ click: () => navigate(`/city/${m.id}`) }} />
+              ))}
             </MapContainer>
           </div>
           <div style={{ padding: '13px 38px 0', font: "400 11.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
