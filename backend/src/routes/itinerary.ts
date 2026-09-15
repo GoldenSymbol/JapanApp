@@ -72,6 +72,7 @@ async function destinationsForTrip(tripId: string) {
     lat: d.lat,
     lng: d.lng,
     teaser: d.teaser,
+    notes: d.notes || '',
     nights: nightsBetween(d.startDate, d.endDate),
     attractionCount: groupCounts.get(groupIdOf(d)) || 0,
     groupId: groupIdOf(d),
@@ -104,7 +105,7 @@ itineraryRouter.get("/destinations", requireAuth, async (req: AuthedRequest, res
 itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  const { nameHe, nameEn, nameJa, startDate, endDate, colorKey, transportIn } = req.body || {};
+  const { nameHe, nameEn, nameJa, startDate, endDate, colorKey, transportIn, notes } = req.body || {};
   if (!nameHe || !startDate || !endDate) return res.status(400).json({ error: "invalid_input" });
   const existing = await fetchDestinations(trip.id);
   const maxOrder = existing.reduce((m, d) => Math.max(m, d.orderIndex), -1);
@@ -122,6 +123,7 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
     lat: coords?.lat ?? null,
     lng: coords?.lng ?? null,
     teaser: null,
+    notes: notes || "",
   });
   await createNotification({
     tripId: trip.id,
@@ -137,7 +139,7 @@ itineraryRouter.patch("/destinations/:id", requireAuth, async (req: AuthedReques
   const trip = await requireTrip(req, res);
   if (!trip) return;
   const id = String(req.params.id);
-  const allowed: Record<string, string> = { nameHe: "nameHe", nameEn: "nameEn", startDate: "startDate", endDate: "endDate" };
+  const allowed: Record<string, string> = { nameHe: "nameHe", nameEn: "nameEn", startDate: "startDate", endDate: "endDate", notes: "notes" };
   const patch: Record<string, any> = {};
   for (const [k, field] of Object.entries(allowed)) {
     if (k in (req.body || {})) patch[field] = req.body[k];

@@ -151,7 +151,7 @@ input:focus { outline: none; }
   letter-spacing: .6px;
 }
 
-input.field {
+input.field, textarea.field {
   width: 100%;
   background: var(--card-soft);
   border: 1px solid var(--border);
@@ -160,6 +160,7 @@ input.field {
   font: 400 16px var(--font-main);
   color: var(--text);
 }
+textarea.field { font-family: inherit; }
 
 .drawer-overlay {
   position: fixed;

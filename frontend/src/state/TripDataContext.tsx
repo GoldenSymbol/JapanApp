@@ -15,6 +15,7 @@ export interface Destination {
   lat: number | null;
   lng: number | null;
   teaser: string | null;
+  notes: string;
   nights: number;
   attractionCount: number;
   groupId: string;

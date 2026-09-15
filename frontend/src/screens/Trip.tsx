@@ -17,8 +17,14 @@ export function Trip() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train' });
+  const [draft, setDraft] = useState({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
   const [addError, setAddError] = useState('');
+  // Local buffers for text fields being edited on an existing destination. Typing writes only
+  // here (instant, no network); the value is only sent to the server (and refreshed) on blur —
+  // saving on every keystroke was causing the server round-trip to race the next keystroke and
+  // make the input jump/revert mid-typing.
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
 
   const first = destinations[0];
   const last = destinations[destinations.length - 1];
@@ -27,6 +33,16 @@ export function Trip() {
   async function saveDest(id: string, patch: Record<string, any>) {
     await api(`/destinations/${id}`, { method: 'PATCH', json: patch });
     await refresh();
+  }
+  function flushName(id: string) {
+    const value = nameDrafts[id];
+    if (value === undefined) return;
+    saveDest(id, { nameHe: value });
+  }
+  function flushNotes(id: string) {
+    const value = notesDrafts[id];
+    if (value === undefined) return;
+    saveDest(id, { notes: value });
   }
   async function move(id: string, direction: 'up' | 'down') {
     await api(`/destinations/${id}/move`, { method: 'POST', json: { direction } });
@@ -45,7 +61,7 @@ export function Trip() {
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     const toIso = (d: Date) => d.toISOString().slice(0, 10);
-    setDraft({ nameHe: '', nameEn: '', startDate: toIso(start), endDate: toIso(end), transportIn: 'train' });
+    setDraft({ nameHe: '', nameEn: '', startDate: toIso(start), endDate: toIso(end), transportIn: 'train', notes: '' });
     setAddError('');
     setAdding(true);
   }
@@ -55,7 +71,7 @@ export function Trip() {
     if (draft.endDate < draft.startDate) { setAddError('תאריך הסיום צריך להיות אחרי תאריך ההתחלה'); return; }
     setAddError('');
     await api('/destinations', { method: 'POST', json: draft });
-    setDraft({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train' });
+    setDraft({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
     setAdding(false);
     await refresh();
   }
@@ -104,7 +120,14 @@ export function Trip() {
                     <input className="field" type="date" value={c.startDate} onChange={(e) => saveDest(c.id, { startDate: e.target.value })} />
                     <input className="field" type="date" value={c.endDate} onChange={(e) => saveDest(c.id, { endDate: e.target.value })} />
                   </div>
-                  <input className="field" style={{ fontWeight: 600, fontSize: 17 }} value={c.nameHe} onChange={(e) => saveDest(c.id, { nameHe: e.target.value })} />
+                  <input className="field" style={{ fontWeight: 600, fontSize: 17 }}
+                    value={nameDrafts[c.id] ?? c.nameHe}
+                    onChange={(e) => setNameDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                    onBlur={() => flushName(c.id)} />
+                  <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 13px/1.5 'Noto Sans Hebrew',sans-serif" }}
+                    value={notesDrafts[c.id] ?? c.notes ?? ''}
+                    onChange={(e) => setNotesDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                    onBlur={() => flushNotes(c.id)} />
                   <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
                     <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => move(c.id, 'up')}>↑</div>
                     <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => move(c.id, 'down')}>↓</div>
@@ -119,6 +142,11 @@ export function Trip() {
                     <span className="pill">{c.nights} לילות</span>
                     <span className="pill">{c.attractionCount} אטרקציות</span>
                   </div>
+                  {c.notes && (
+                    <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 12 }}>
+                      {c.notes}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -152,6 +180,8 @@ export function Trip() {
                   </div>
                 ))}
               </div>
+              <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 13px/1.5 'Noto Sans Hebrew',sans-serif" }}
+                value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
               {addError && <div style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)' }}>{addError}</div>}
               <div style={{ display: 'flex', gap: 7 }}>
                 <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addDestination}>הוסף</div>
