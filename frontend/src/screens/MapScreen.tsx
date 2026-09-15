@@ -116,7 +116,7 @@ export function MapScreen() {
               })}
               {countryMarkers.map((m) => (
                 <Marker key={m.id} position={[m.lat, m.lng]}
-                  icon={pinIcon({ name: m.nameHe, dotBg: m.colorKey, dotBorder: '#F6F4EF', dotText: m.orders.join('·'), size: m.orders.length > 1 ? 25 : 20, dark })}
+                  icon={pinIcon({ name: m.nameHe, dotBg: m.colorKey, dotBorder: '#F6F4EF', dotText: m.orders.join('·'), size: 20, pill: m.orders.length > 1, dark })}
                   eventHandlers={{ click: () => navigate(`/city/${m.id}`) }} />
               ))}
             </MapContainer>

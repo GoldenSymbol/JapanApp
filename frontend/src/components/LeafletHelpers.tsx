@@ -34,13 +34,20 @@ export function dotIcon(opts: { label?: string; bg: string; border: string; colo
   });
 }
 
-export function pinIcon(opts: { name: string; dotBg: string; dotBorder: string; dotText?: string; size?: number; dark: boolean }) {
+export function pinIcon(opts: { name: string; dotBg: string; dotBorder: string; dotText?: string; size?: number; dark: boolean; pill?: boolean }) {
   const size = opts.size || 22;
+  // A pin listing more than one stop number (a place visited twice) is wider than it is tall —
+  // a stadium/pill shape instead of a circle, so the numbers sit inside with breathing room
+  // instead of spilling past a circle's edges.
+  const isPill = opts.pill && (opts.dotText?.length ?? 0) > 2;
+  const width = isPill ? Math.round(size * 1.65) : size;
+  const dotFont = isPill ? Math.round(size * 0.42) : Math.round(size * 0.5);
+  const dotRadius = isPill ? '999px' : '50%';
   return L.divIcon({
     className: 'leaflet-ltr-icon',
     html: `
-      <div style="position:relative;width:${size}px;height:${size}px;transform:translate(-50%,-50%)">
-        <div style="width:${size}px;height:${size}px;border-radius:50%;background:${opts.dotBg};border:2px solid ${opts.dotBorder};display:flex;align-items:center;justify-content:center;font:600 ${Math.round(size * 0.5)}px 'Noto Sans Hebrew',sans-serif;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35)">${opts.dotText || ''}</div>
+      <div style="position:relative;width:${width}px;height:${size}px;transform:translate(-50%,-50%)">
+        <div style="width:${width}px;height:${size}px;border-radius:${dotRadius};background:${opts.dotBg};border:2px solid ${opts.dotBorder};display:flex;align-items:center;justify-content:center;font:600 ${dotFont}px 'Noto Sans Hebrew',sans-serif;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);padding:0 3px;white-space:nowrap">${opts.dotText || ''}</div>
         <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;white-space:nowrap;background:${opts.dark ? 'rgba(20,22,26,.75)' : 'rgba(255,255,255,.92)'};color:${opts.dark ? '#F6F4EF' : '#14161A'};font:600 11px 'Noto Sans Hebrew',sans-serif;padding:2px 8px;border-radius:999px">${opts.name}</div>
       </div>`,
     iconSize: [0, 0],
