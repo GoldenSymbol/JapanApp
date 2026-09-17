@@ -2,16 +2,24 @@
 //
 // DRAFT STATUS: this text was written by grounding every factual claim in what the codebase
 // actually does (auth provider, database, third-party requests, what's collected, what isn't
-// implemented). It has NOT been reviewed by a lawyer and is not a substitute for one. Anywhere
-// a real business/legal fact is needed that isn't derivable from the code — a legal entity name,
-// a jurisdiction, a support address — is marked with a ⟦REVIEW: ...⟧ placeholder instead of a
-// guess. Search for ⟦REVIEW to find every open item before this is ever shown to a real user base
-// beyond the private trip group it was built for.
+// implemented). It has NOT been reviewed by a lawyer and is not a substitute for one.
+//
+// Operator identity, audience, and contact address were confirmed directly by the operator
+// (2026-09-18: private individual, Niv Chordeker; Israel-only audience; neevch19@gmail.com for
+// both support and privacy inquiries) and are filled in below — no longer placeholders.
+//
+// What's still open blocks publishing these documents to real users beyond the private trip
+// group they were built for. Every remaining open item is tracked in ONE place —
+// PUBLICATION_BLOCKERS below — rather than repeated inline; sections that depend on one just
+// point back to it with a short ⟦REVIEW: ...⟧ marker instead of restating it.
 //
 // Version numbers: bump TERMS_VERSION only for a substantive change to the terms themselves (new
 // obligations, new data use, a scope change) — never for a typo fix. Bumping it re-triggers the
 // acceptance gate for every user, including ones who already accepted an earlier version (see
 // backend/src/legal.ts, which must be kept in sync with this value, and RequireAuth in App.tsx).
+// Bumped to 1.1 here since filling in the operator's identity and governing law is a substantive
+// change to what users are actually agreeing to — done now, before this was shown to any real
+// user (only test accounts had accepted 1.0, since removed).
 // PRIVACY_VERSION is tracked separately and does NOT gate anything by itself — the Privacy Policy
 // is a disclosure, not a consent mechanism (see its own note in App.tsx / Signup.tsx).
 
@@ -20,18 +28,26 @@ export interface LegalSection {
   body: string[];
 }
 
-export const TERMS_VERSION = '1.0';
+// Single source of truth for what's still missing before these documents can be published to
+// real users. Referenced by ⟦REVIEW: ...⟧ markers inline below instead of duplicating the
+// explanation in every section that touches it.
+export const PUBLICATION_BLOCKERS: string[] = [
+  'תהליך מחיקת חשבון מלא: אין כיום דרך עצמאית למחוק חשבון ומידע (רק יציאה מטיול), ואין תהליך מוגדר — ולו ידני — למחיקה לפי בקשה. נדרשת החלטה ותיאור בתנאי השימוש (סעיף 8) ובמדיניות הפרטיות (סעיף 6).',
+  'הגבלת גיל / פרטיות קטינים: לא הוגדר גיל מינימלי לשימוש באפליקציה ואין מנגנון לאימות גיל. נדרשת החלטה ועדכון בתנאי השימוש ובמדיניות הפרטיות (סעיף 9).',
+];
+
+export const TERMS_VERSION = '1.1';
 export const TERMS_UPDATED = '2026-09-18';
 
-export const PRIVACY_VERSION = '1.0';
+export const PRIVACY_VERSION = '1.1';
 export const PRIVACY_UPDATED = '2026-09-18';
 
 export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: '1. מפעיל השירות',
     body: [
-      'MichiPlan (״האפליקציה״, ״השירות״) הוא כלי לתכנון משותף של טיול ליפן, המשמש קבוצה סגורה של משתתפים המצטרפים באמצעות קוד הזמנה. השירות מופעל על ידי ⟦REVIEW: יש להשלים את שם המפעיל — אדם פרטי או ישות משפטית רשומה⟧.',
-      'לפניות בנוגע לשירות ולתנאים אלה ניתן לפנות אל ⟦REVIEW: יש להשלים כתובת יצירת קשר רשמית לתמיכה/פניות משפטיות⟧.',
+      'MichiPlan (״האפליקציה״, ״השירות״) הוא כלי לתכנון משותף של טיול ליפן, המשמש קבוצה סגורה של משתתפים המצטרפים באמצעות קוד הזמנה. השירות מופעל על ידי ניב צורדקר, כאדם פרטי — לא כחברה או כתאגיד רשום. השירות מיועד כיום למשתמשים בישראל בלבד.',
+      'לפניות בנוגע לשירות ולתנאים אלה ניתן לפנות אל neevch19@gmail.com.',
     ],
   },
   {
@@ -80,7 +96,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: '8. סגירת חשבון',
     body: [
-      'ניתן לצאת מטיול בכל עת דרך מסך ההגדרות באפליקציה. מחיקה מלאה של חשבון המשתמש עצמו (לא רק יציאה מטיול) אינה זמינה כרגע כפעולה עצמאית באפליקציה — ⟦REVIEW: אין כרגע תהליך אוטומטי למחיקת חשבון; יש להחליט על תהליך (למשל פנייה ידנית למפעיל) ולתאר אותו כאן ובמדיניות הפרטיות לפני השקה⟧.',
+      'ניתן לצאת מטיול בכל עת דרך מסך ההגדרות באפליקציה. מחיקה מלאה של חשבון המשתמש עצמו (לא רק יציאה מטיול) אינה זמינה כרגע כפעולה עצמאית באפליקציה — ⟦REVIEW: ראו ״תהליך מחיקת חשבון מלא״ ברשימת הפריטים החוסמים פרסום, בראש העמוד⟧.',
       'המפעיל רשאי להשעות או לסגור חשבון המפר תנאים אלה, ככל האפשר לאחר התראה סבירה בנסיבות העניין.',
     ],
   },
@@ -100,7 +116,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: '11. דין חל',
     body: [
-      '⟦REVIEW: יש לקבוע את הדין החל ואת סמכות השיפוט (למשל: דיני מדינת ישראל, סמכות שיפוט ייחודית לבתי המשפט במחוז מסוים) בהתאם למיקום המפעיל והמשתמשים בפועל⟧.',
+      'על תנאים אלה יחולו דיני מדינת ישראל, וסמכות השיפוט הבלעדית בכל עניין הנוגע להם נתונה לבתי המשפט המוסמכים בישראל.',
     ],
   },
 ];
@@ -153,7 +169,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     heading: '6. שמירה ומחיקה',
     body: [
       'המידע נשמר כל עוד החשבון והטיול פעילים. יציאה מטיול (דרך ההגדרות) מוחקת את הסימונים האישיים שלכם באותו טיול (למשל אטרקציות שסימנתם כנצפו/תוכננו), אך אינה מוחקת תוכן שהוספתם וששאר המשתתפים כבר רואים (למשל יעדים או אטרקציות שיצרתם) — אלה נותרים חלק מהטיול המשותף.',
-      'מחיקה מלאה ועצמאית של חשבון משתמש (לרבות פרטי הפרופיל וההיסטוריה) אינה נתמכת כרגע כפעולה באפליקציה עצמה. ⟦REVIEW: יש להגדיר תהליך מחיקת חשבון מלא (עצמאי או דרך פנייה למפעיל), ותקופת שמירה מוגדרת לאחר סגירת חשבון, לפני השקה למשתמשים שאינם חלק מקבוצת הבדיקה המצומצמת⟧.',
+      'מחיקה מלאה ועצמאית של חשבון משתמש (לרבות פרטי הפרופיל וההיסטוריה) אינה נתמכת כרגע כפעולה באפליקציה עצמה. ⟦REVIEW: ראו ״תהליך מחיקת חשבון מלא״ ברשימת הפריטים החוסמים פרסום, בראש העמוד⟧.',
       'תיעוד אישור תנאי השימוש (גרסה ומועד) נשמר לצורך תיעוד ואינו נמחק עם יציאה מטיול, שכן הוא קשור לחשבון ולא לטיול ספציפי.',
     ],
   },
@@ -172,14 +188,14 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     heading: '9. פרטיות ילדים',
     body: [
-      '⟦REVIEW: לא הוגדר גיל מינימלי לשימוש באפליקציה ואין מנגנון לאימות גיל. יש להחליט אם יש להגביל שימוש לבני 18 ומעלה (או גיל אחר) ולעדכן גם את תנאי השימוש בהתאם⟧.',
+      '⟦REVIEW: ראו ״הגבלת גיל / פרטיות קטינים״ ברשימת הפריטים החוסמים פרסום, בראש העמוד⟧.',
     ],
   },
   {
     heading: '10. הזכויות שלכם ודרכי פנייה',
     body: [
-      'ניתן לצפות בפרטי הפרופיל שלכם ולעדכנם ישירות במסך ההגדרות באפליקציה (שם, אווטאר, שפה, מטבע, העדפות התראות). לבקשת עיון מלאה במידע השמור עליכם, תיקון מידע שאינו ניתן לעדכון עצמי, או שאלות על מדיניות זו, ניתן לפנות אל ⟦REVIEW: יש להשלים כתובת יצירת קשר רשמית לפניות פרטיות⟧.',
-      'ככל שיחול על השימוש באפליקציה דין המקנה זכויות פרטיות נוספות (כגון זכות מחיקה, ניוד מידע או התנגדות לעיבוד), ⟦REVIEW: יש לקבוע איזה דין חל (למשל חוק הגנת הפרטיות הישראלי, GDPR האירופי, או אחר) בהתאם למיקום המפעיל והמשתמשים, ולהשלים את פירוט הזכויות הרלוונטיות בהתאם⟧.',
+      'ניתן לצפות בפרטי הפרופיל שלכם ולעדכנם ישירות במסך ההגדרות באפליקציה (שם, אווטאר, שפה, מטבע, העדפות התראות). לבקשת עיון מלאה במידע השמור עליכם, תיקון מידע שאינו ניתן לעדכון עצמי, או שאלות על מדיניות זו, ניתן לפנות אל neevch19@gmail.com.',
+      'השירות מיועד כיום למשתמשים בישראל, וככל שחלות על עיבוד המידע זכויות פרטיות נוספות מכוח הדין הישראלי (חוק הגנת הפרטיות, התשמ״א-1981), ניתן לממש אותן באמצעות הפנייה שלעיל.',
     ],
   },
   {

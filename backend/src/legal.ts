@@ -7,4 +7,4 @@
 // change) — never for a wording/typo fix or a Privacy Policy-only update. Bumping it means every
 // user, including ones who already accepted an earlier version, will be asked to accept again the
 // next time they open the app (see RequireAuth's terms gate on the frontend).
-export const TERMS_VERSION = "1.0";
+export const TERMS_VERSION = "1.1";

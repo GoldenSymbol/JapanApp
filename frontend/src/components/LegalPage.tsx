@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { LegalSection } from '../legal/content';
+import { PUBLICATION_BLOCKERS } from '../legal/content';
 
 // Draft text marks anything that still needs a real business/legal decision with
 // ⟦REVIEW: ...⟧ — highlighted here so it's impossible to miss while reviewing the page itself,
@@ -51,8 +52,19 @@ export function LegalPage({ title, version, updated, sections }: {
           <div style={{ font: "600 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)' }}>טיוטה לצורך בדיקה</div>
           <div style={{ font: "400 12px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>
             מסמך זה הוכן בהתאם למה שהאפליקציה עושה בפועל בקוד, אך טרם עבר אישור משפטי ואינו מהווה ייעוץ משפטי.
-            סעיפים המסומנים ״לבדיקה״ למטה מכילים פרטים עסקיים/משפטיים שטרם הוחלטו ויש להשלים לפני הצגת המסמך למשתמשים אמיתיים.
           </div>
+          {PUBLICATION_BLOCKERS.length > 0 && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(217,86,75,.35)' }}>
+              <div style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)' }}>
+                פריטים החוסמים פרסום למשתמשים אמיתיים ({PUBLICATION_BLOCKERS.length})
+              </div>
+              <ul style={{ margin: '6px 0 0', padding: '0 18px 0 0' }}>
+                {PUBLICATION_BLOCKERS.map((b, i) => (
+                  <li key={i} style={{ font: "400 12px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {sections.map((s) => (
