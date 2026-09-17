@@ -17,6 +17,8 @@ export interface User {
   baseCurrency: string;
   prefs: { weather: boolean; offlineSave: boolean; autoSync: boolean };
   notifPrefs: { newAttraction: boolean; newDestination: boolean; reschedule: boolean; newExpense: boolean };
+  termsAcceptedVersion: string | null;
+  termsAcceptedAt: string | null;
 }
 export interface TripSummary { id: string; name: string; }
 
@@ -24,6 +26,10 @@ interface AuthState {
   user: User | null;
   trip: TripSummary | null;
   loading: boolean;
+  // The Terms version currently in force, per the server (backend/src/legal.ts). A signed-in
+  // user whose termsAcceptedVersion doesn't match this needs to see the terms gate — see
+  // RequireAuth in App.tsx. Null until the first authenticated response comes back.
+  currentTermsVersion: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -31,6 +37,7 @@ interface AuthState {
   joinTrip: (code: string) => Promise<void>;
   refresh: () => Promise<void>;
   updateMe: (patch: Record<string, any>) => Promise<void>;
+  acceptTerms: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -53,10 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [trip, setTrip] = useState<TripSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentTermsVersion, setCurrentTermsVersion] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     const data = await api('/auth/me');
-    setUser(data.user); setTrip(data.trip);
+    setUser(data.user); setTrip(data.trip); setCurrentTermsVersion(data.currentTermsVersion);
   }, []);
 
   useEffect(() => {
@@ -82,6 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile();
   }, [loadProfile]);
 
+  // Called only after Signup.tsx has confirmed the terms checkbox was checked — this always
+  // records acceptance of the current terms right after creating the profile, in the same flow,
+  // rather than leaving a freshly-created account to hit the terms gate on its very first screen.
   const signup = useCallback(async (name: string, email: string, password: string) => {
     if (password.length < 8) throw new ApiError(400, { message: 'הסיסמה צריכה להיות לפחות 8 תווים' });
     let cred;
@@ -91,8 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       throw toApiError(e);
     }
-    const data = await api('/auth/bootstrap', { method: 'POST', json: { name, email } });
-    setUser(data.user); setTrip(data.trip);
+    await api('/auth/bootstrap', { method: 'POST', json: { name, email } });
+    const data = await api('/auth/accept-terms', { method: 'POST' });
+    setUser(data.user); setCurrentTermsVersion(data.currentTermsVersion);
+    setTrip(null);
+  }, []);
+
+  const acceptTerms = useCallback(async () => {
+    const data = await api('/auth/accept-terms', { method: 'POST' });
+    setUser(data.user); setCurrentTermsVersion(data.currentTermsVersion);
   }, []);
 
   const logout = useCallback(() => {
@@ -115,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, trip, loading, login, signup, logout, createTrip, joinTrip, refresh: loadProfile, updateMe }}>
+    <Ctx.Provider value={{ user, trip, loading, currentTermsVersion, login, signup, logout, createTrip, joinTrip, refresh: loadProfile, updateMe, acceptTerms }}>
       {children}
     </Ctx.Provider>
   );

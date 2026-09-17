@@ -20,6 +20,11 @@ export function publicUser(uid: string, d: any) {
     baseCurrency: d.baseCurrency || "ILS",
     prefs: { ...DEFAULT_PREFS, ...(d.prefs || {}) },
     notifPrefs: { ...DEFAULT_NOTIF_PREFS, ...(d.notifPrefs || {}) },
+    // Absent entirely for any user who hasn't accepted the current Terms of Service —
+    // deliberately NOT defaulted to a version here, unlike the fields above, so an existing
+    // user who predates this field is never mistaken for someone who already agreed.
+    termsAcceptedVersion: d.termsAcceptedVersion ?? null,
+    termsAcceptedAt: d.termsAcceptedAt?.toDate?.().toISOString() ?? null,
   };
 }
 

@@ -57,6 +57,11 @@ export function Login() {
       <div style={{ marginTop: 26, font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>
         לבדיקה: uri@example.com / partner@example.com, סיסמה japan2027
       </div>
+      <div style={{ marginTop: 14, display: 'flex', gap: 6, justifyContent: 'center', font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>
+        <Link to="/terms" style={{ color: 'var(--text-dim-2)', textDecoration: 'underline' }}>תנאי שימוש</Link>
+        <span>·</span>
+        <Link to="/privacy" style={{ color: 'var(--text-dim-2)', textDecoration: 'underline' }}>מדיניות פרטיות</Link>
+      </div>
     </div>
   );
 }

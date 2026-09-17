@@ -4,6 +4,7 @@ import { NotificationsProvider } from './state/NotificationsContext';
 import { TripDataProvider } from './state/TripDataContext';
 import { AppLayout } from './components/AppLayout';
 import { JaPlanLoader } from './components/JaPlanLoader';
+import { TermsGate } from './components/TermsGate';
 
 import { Login } from './screens/Login';
 import { Signup } from './screens/Signup';
@@ -16,6 +17,8 @@ import { Today } from './screens/Today';
 import { Budget } from './screens/Budget';
 import { Settings } from './screens/Settings';
 import { Members } from './screens/Members';
+import { Terms } from './screens/Terms';
+import { Privacy } from './screens/Privacy';
 
 function Splash() {
   return (
@@ -26,9 +29,14 @@ function Splash() {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, currentTermsVersion } = useAuth();
   if (loading) return <Splash />;
   if (!user) return <Navigate to="/login" replace />;
+  // Applies to every protected route (not just the ones inside AuthedApp) so an existing user
+  // hits the one-time acceptance gate the first time they land anywhere post-login, not just
+  // once they reach a trip. currentTermsVersion is null only for the brief moment before the
+  // first /auth/me response comes back, during which `loading` above already covers us.
+  if (currentTermsVersion && user.termsAcceptedVersion !== currentTermsVersion) return <TermsGate />;
   return <>{children}</>;
 }
 
@@ -55,6 +63,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/choose" element={<RequireAuth><Choose /></RequireAuth>} />
       <Route path="/join" element={<RequireAuth><JoinTrip /></RequireAuth>} />
 

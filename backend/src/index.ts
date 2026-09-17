@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import "./db.js";
+import { requireAuth, requireTermsAccepted } from "./auth.js";
 import { authRouter } from "./routes/auth.js";
 import { tripsRouter } from "./routes/trips.js";
 import { itineraryRouter } from "./routes/itinerary.js";
@@ -14,11 +15,16 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+// /api/auth is intentionally the one router without requireTermsAccepted — see that
+// middleware's own comment for why (it has to stay reachable to ever be satisfied).
+// requireTermsAccepted needs req.userId, so requireAuth must run first — each router below
+// also calls requireAuth again per-route (harmless: verifying the same already-valid token
+// twice), left in place rather than stripped out of every route handler for this.
 app.use("/api/auth", authRouter);
-app.use("/api/trips", tripsRouter);
-app.use("/api", itineraryRouter);
-app.use("/api/budget", budgetRouter);
-app.use("/api/translate", translateRouter);
+app.use("/api/trips", requireAuth, requireTermsAccepted, tripsRouter);
+app.use("/api", requireAuth, requireTermsAccepted, itineraryRouter);
+app.use("/api/budget", requireAuth, requireTermsAccepted, budgetRouter);
+app.use("/api/translate", requireAuth, requireTermsAccepted, translateRouter);
 
 runSeed();
 

@@ -7,6 +7,16 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/trips/$(tripId)/members/$(request.auth.uid));
     }
 
+    // User profiles (including Terms of Service acceptance status) and the terms-acceptance
+    // audit log are both written exclusively by the backend via the Admin SDK. Denied here
+    // explicitly (matching this file's style elsewhere) even though it's also the default.
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+    match /consentLog/{logId} {
+      allow read, write: if false;
+    }
+
     match /trips/{tripId} {
       // Trip metadata, membership, destinations, attractions, and invites are all written
       // exclusively by the backend (via the Admin SDK, which bypasses these rules entirely) —
