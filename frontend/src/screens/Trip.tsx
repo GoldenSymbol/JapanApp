@@ -124,7 +124,7 @@ export function Trip() {
                     value={nameDrafts[c.id] ?? c.nameHe}
                     onChange={(e) => setNameDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                     onBlur={() => flushName(c.id)} />
-                  <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 13px/1.5 'Noto Sans Hebrew',sans-serif" }}
+                  <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
                     value={notesDrafts[c.id] ?? c.notes ?? ''}
                     onChange={(e) => setNotesDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                     onBlur={() => flushNotes(c.id)} />
@@ -180,7 +180,7 @@ export function Trip() {
                   </div>
                 ))}
               </div>
-              <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 13px/1.5 'Noto Sans Hebrew',sans-serif" }}
+              <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
                 value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
               {addError && <div style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)' }}>{addError}</div>}
               <div style={{ display: 'flex', gap: 7 }}>
