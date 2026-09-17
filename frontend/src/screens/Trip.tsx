@@ -138,15 +138,15 @@ export function Trip() {
                 <div onClick={() => navigate(`/city/${c.id}`)} style={{ cursor: 'pointer' }}>
                   <div dir="ltr" style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', letterSpacing: '.6px', textAlign: 'right' }}>{fmtRange(c.startDate, c.endDate)}</div>
                   <div style={{ font: "600 24px/1.2 'Noto Sans Hebrew',sans-serif", marginTop: 7 }}>{c.nameHe}</div>
+                  {c.notes && (
+                    <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
+                      {c.notes}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 7, marginTop: 14 }}>
                     <span className="pill">{c.nights} לילות</span>
                     <span className="pill">{c.attractionCount} אטרקציות</span>
                   </div>
-                  {c.notes && (
-                    <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 12 }}>
-                      {c.notes}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
