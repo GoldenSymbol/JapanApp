@@ -36,7 +36,7 @@ export function LegalPage({ title, version, updated, sections }: {
   const navigate = useNavigate();
   return (
     <div className="app-shell">
-      <div style={{ padding: '18px 22px 48px' }}>
+      <div style={{ padding: 'calc(18px + env(safe-area-inset-top)) 22px 48px' }}>
         <div onClick={() => navigate(-1)} style={{ font: "500 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', padding: '8px 0' }}>
           → חזרה
         </div>
