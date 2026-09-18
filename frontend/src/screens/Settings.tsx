@@ -154,24 +154,15 @@ export function Settings() {
         ))}
       </div>
 
-      <div className="section-label" style={{ padding: '26px 22px 6px' }}>משפטי</div>
-      <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column' }}>
-        <div onClick={() => navigate('/terms')}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderTop: '1px solid var(--border-soft)', cursor: 'pointer' }}>
-          <div style={{ font: "500 14px 'Noto Sans Hebrew',sans-serif" }}>תנאי שימוש</div>
-          <div style={{ color: 'var(--text-dim)' }}>←</div>
-        </div>
-        <div onClick={() => navigate('/privacy')}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderTop: '1px solid var(--border-soft)', cursor: 'pointer' }}>
-          <div style={{ font: "500 14px 'Noto Sans Hebrew',sans-serif" }}>מדיניות פרטיות</div>
-          <div style={{ color: 'var(--text-dim)' }}>←</div>
-        </div>
-      </div>
-
       <div style={{ padding: '26px 22px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="btn" style={{ border: '1px solid rgba(217,86,75,.4)', color: 'var(--danger)', textAlign: 'center', padding: 15 }} onClick={() => setLeaveOpen(true)}>יציאה מהטיול</div>
         <div className="btn btn-outline" style={{ textAlign: 'center', padding: 15 }} onClick={() => { logout(); navigate('/login'); }}>יציאה מהחשבון</div>
         <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)', textAlign: 'center', paddingTop: 6 }}>גרסה 1.0 · MichiPlan</div>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>
+          <span onClick={() => navigate('/terms')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>תנאי שימוש</span>
+          <span>·</span>
+          <span onClick={() => navigate('/privacy')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>מדיניות פרטיות</span>
+        </div>
       </div>
 
       <AnimatePresence>
