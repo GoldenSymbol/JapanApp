@@ -8,6 +8,7 @@ import { tripsRouter } from "./routes/trips.js";
 import { itineraryRouter } from "./routes/itinerary.js";
 import { budgetRouter } from "./routes/budget.js";
 import { translateRouter } from "./routes/translate.js";
+import { documentsRouter } from "./routes/documents.js";
 import { runSeed } from "./seed.js";
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/api/trips", requireAuth, requireTermsAccepted, tripsRouter);
 app.use("/api", requireAuth, requireTermsAccepted, itineraryRouter);
 app.use("/api/budget", requireAuth, requireTermsAccepted, budgetRouter);
 app.use("/api/translate", requireAuth, requireTermsAccepted, translateRouter);
+app.use("/api", requireAuth, requireTermsAccepted, documentsRouter);
 
 runSeed();
 

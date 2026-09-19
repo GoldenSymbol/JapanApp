@@ -19,6 +19,7 @@ import { Settings } from './screens/Settings';
 import { Members } from './screens/Members';
 import { Terms } from './screens/Terms';
 import { Privacy } from './screens/Privacy';
+import { Documents } from './screens/Documents';
 
 function Splash() {
   return (
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/map" element={<MapScreen />} />
         <Route path="/today" element={<Today />} />
         <Route path="/budget" element={<Budget />} />
+        <Route path="/documents" element={<Documents />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/members" element={<Members />} />
       </Route>

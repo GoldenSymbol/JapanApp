@@ -1,12 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TripIcon, MapPinIcon, CalendarIcon, CardIcon } from './Icons';
+import { TripIcon, MapPinIcon, CalendarIcon, CardIcon, FolderIcon } from './Icons';
 
+// Rendered right-to-left (RTL layout), so the LAST entry here ends up as the LEFTMOST tab.
 const TABS = [
   { path: '/trip', label: 'מסלול', Icon: TripIcon },
   { path: '/map', label: 'מפה', Icon: MapPinIcon },
   { path: '/today', label: 'היום', Icon: CalendarIcon },
   { path: '/budget', label: 'תקציב', Icon: CardIcon },
+  { path: '/documents', label: 'מסמכים', Icon: FolderIcon },
 ];
 
 export function BottomNav() {

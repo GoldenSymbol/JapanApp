@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Trip documents (hotel/ticket/flight/booking confirmations) are written and read
+    // exclusively by the backend via the Admin SDK, which bypasses these rules entirely —
+    // matching firestore.rules' pattern for everything else in this app. The client never
+    // talks to Storage directly: uploads go through the backend as multipart requests, and
+    // downloads/shares are served through backend-authenticated endpoints. Denied here
+    // explicitly for documentation, even though it's also the default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
