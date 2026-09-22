@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Drawer } from './Drawer';
 import { api } from '../api';
+import { useLanguage } from '../state/LanguageContext';
 
-type Lang = 'he' | 'en' | 'ja';
+type PhraseLang = 'he' | 'en' | 'ja';
 interface Entry { he: string; en: string; ja: string; romaji: string; kind: string }
 
-const LANG_LABEL: Record<Lang, string> = { he: 'עברית', en: 'English', ja: '日本語' };
+// The phrasebook's own 3-way language selector (Hebrew/English/Japanese, for travel phrases) —
+// unrelated to the app's UI language, which only ever offers Hebrew/English. Kept as-is on
+// purpose: a Hebrew-speaking user planning a Japan trip still wants to translate to Japanese.
+const LANG_LABEL: Record<PhraseLang, string> = { he: 'עברית', en: 'English', ja: '日本語' };
 
 export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [from, setFrom] = useState<Lang>('he');
-  const [to, setTo] = useState<Lang>('ja');
+  const [from, setFrom] = useState<PhraseLang>('he');
+  const [to, setTo] = useState<PhraseLang>('ja');
   const [input, setInput] = useState('');
 
   useEffect(() => {
@@ -33,7 +38,7 @@ export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   return (
     <Drawer open={open} onClose={onClose}>
-      <div style={{ font: "600 20px/1.25 'Noto Sans Hebrew',sans-serif" }}>訳 תרגום</div>
+      <div style={{ font: "600 20px/1.25 'Noto Sans Hebrew',sans-serif" }}>{t('translate.title')}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
         <div style={{ flex: 1, textAlign: 'center', background: 'var(--card-soft)', borderRadius: 12, padding: '10px 0', fontWeight: 600 }}>
           {LANG_LABEL[from]}
@@ -44,18 +49,18 @@ export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () 
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        {(['he', 'en', 'ja'] as Lang[]).map((l) => (
+        {(['he', 'en', 'ja'] as PhraseLang[]).map((l) => (
           <div key={l} onClick={() => setTo(l === from ? to : l)}
             style={{ flex: 1, textAlign: 'center', borderRadius: 999, padding: '8px 6px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
               border: `1.5px solid ${to === l ? 'var(--accent)' : 'var(--border)'}`, color: to === l ? 'var(--accent)' : 'var(--text-dim)' }}>
-            ל{LANG_LABEL[l]}
+            {t('translate.toPrefix')}{LANG_LABEL[l]}
           </div>
         ))}
       </div>
       <input
         className="field"
         style={{ marginTop: 16, direction: from === 'en' ? 'ltr' : 'rtl' }}
-        placeholder="הקלד/י מילה..."
+        placeholder={t('translate.inputPlaceholder')}
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
@@ -67,11 +72,11 @@ export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () 
           </>
         ) : (
           <div style={{ color: 'var(--text-dim)', fontSize: 12.5 }}>
-            {input.trim() ? 'לא נמצא במילון — נסו לשאול את הסוכן בצ׳אט.' : 'הקלידו מילה או בחרו ביטוי שימושי למטה.'}
+            {input.trim() ? t('translate.notFound') : t('translate.prompt')}
           </div>
         )}
       </div>
-      <div className="section-label" style={{ padding: '20px 0 10px' }}>ביטויים שימושיים</div>
+      <div className="section-label" style={{ padding: '20px 0 10px' }}>{t('translate.usefulPhrases')}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {phrases.map((p) => (
           <div key={p.he} onClick={() => { setFrom('he'); setInput(p.he); }}

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './state/AuthContext';
+import { useLanguage } from './state/LanguageContext';
 import { NotificationsProvider } from './state/NotificationsContext';
 import { TripDataProvider } from './state/TripDataContext';
 import { AppLayout } from './components/AppLayout';
@@ -22,9 +23,10 @@ import { Privacy } from './screens/Privacy';
 import { Documents } from './screens/Documents';
 
 function Splash() {
+  const { lang } = useLanguage();
   return (
     <div className="app-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <JaPlanLoader size={200} />
+      <JaPlanLoader size={200} label={lang === 'en' ? 'Loading JaPlan…' : 'טוען את JaPlan…'} />
     </div>
   );
 }

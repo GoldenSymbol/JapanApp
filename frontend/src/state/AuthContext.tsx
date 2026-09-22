@@ -43,6 +43,12 @@ interface AuthState {
 
 const Ctx = createContext<AuthState | null>(null);
 
+// Kept as a Hebrew fallback only, for any caller that reads .message directly without going
+// through a translation lookup. The `error` field below carries the raw Firebase code (or
+// 'weak_password') so UI components — which have access to useLanguage() — can show a properly
+// localized message instead (see translations.ts's `authError.*` keys). AuthContext itself can't
+// call useLanguage() here since LanguageProvider reads `user` from this same context and sits
+// below it in the provider tree — a real circular dependency, not just plumbing friction.
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/email-already-in-use': 'האימייל הזה כבר רשום',
   'auth/weak-password': 'הסיסמה חייבת להיות לפחות 6 תווים',
@@ -54,7 +60,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 
 function toApiError(e: any): ApiError {
-  return new ApiError(400, { message: AUTH_ERROR_MESSAGES[e?.code] || 'שגיאה, נסה שוב' });
+  return new ApiError(400, { error: e?.code, message: AUTH_ERROR_MESSAGES[e?.code] || 'שגיאה, נסה שוב' });
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -133,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // records acceptance of the current terms right after creating the profile, in the same flow,
   // rather than leaving a freshly-created account to hit the terms gate on its very first screen.
   const signup = useCallback(async (name: string, email: string, password: string) => {
-    if (password.length < 8) throw new ApiError(400, { message: 'הסיסמה צריכה להיות לפחות 8 תווים' });
+    if (password.length < 8) throw new ApiError(400, { error: 'weak_password', message: 'הסיסמה צריכה להיות לפחות 8 תווים' });
     let cred;
     explicitLoadInFlight.current = true;
     try {

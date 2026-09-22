@@ -2,15 +2,16 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer } from './Drawer';
 import { useNotifications, type Notification } from '../state/NotificationsContext';
+import { useLanguage } from '../state/LanguageContext';
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: (key: string, vars?: Record<string, string | number>) => string) {
   const diffMs = Date.now() - new Date(/[Z+]|-\d\d:\d\d$/.test(iso) ? iso : iso + 'Z').getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'עכשיו';
-  if (mins < 60) return `לפני ${mins} דק׳`;
+  if (mins < 1) return t('notifications.justNow');
+  if (mins < 60) return t('notifications.minutesAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `לפני ${hours} שע׳`;
-  return `לפני ${Math.floor(hours / 24)} ימים`;
+  if (hours < 24) return t('notifications.hoursAgo', { n: hours });
+  return t('notifications.daysAgo', { n: Math.floor(hours / 24) });
 }
 
 const SCREEN_PATH: Record<string, string> = {
@@ -22,6 +23,7 @@ const DELETE_WIDTH = 72;
 function SwipeableNotification({ n, onOpen, onDelete }: {
   n: Notification; onOpen: () => void; onDelete: () => void;
 }) {
+  const { t } = useLanguage();
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
@@ -61,7 +63,7 @@ function SwipeableNotification({ n, onOpen, onDelete }: {
           font: "600 12.5px 'Noto Sans Hebrew',sans-serif", cursor: 'pointer',
         }}
       >
-        מחק
+        {t('notifications.delete')}
       </div>
       <div
         onPointerDown={onPointerDown}
@@ -80,7 +82,7 @@ function SwipeableNotification({ n, onOpen, onDelete }: {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: "500 14px/1.35 'Noto Sans Hebrew',sans-serif" }}>{n.title}</div>
-          <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{timeAgo(n.createdAt)}</div>
+          <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{timeAgo(n.createdAt, t)}</div>
         </div>
       </div>
     </div>
@@ -89,25 +91,26 @@ function SwipeableNotification({ n, onOpen, onDelete }: {
 
 export function NotificationsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { notifications, markRead, markAllRead, deleteNotification, deleteAll } = useNotifications();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   return (
     <Drawer open={open} onClose={onClose} position="top">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ font: "600 20px/1.25 'Noto Sans Hebrew',sans-serif" }}>התראות</div>
+        <div style={{ font: "600 20px/1.25 'Noto Sans Hebrew',sans-serif" }}>{t('notifications.title')}</div>
         <div style={{ display: 'flex', gap: 14 }}>
           <div onClick={markAllRead} style={{ font: "600 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer' }}>
-            סמן הכל כנקרא
+            {t('notifications.markAllRead')}
           </div>
           {notifications.length > 0 && (
             <div onClick={deleteAll} style={{ font: "600 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', cursor: 'pointer' }}>
-              מחק הכל
+              {t('notifications.deleteAll')}
             </div>
           )}
         </div>
       </div>
       {notifications.length === 0 && (
-        <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>אין עדיין התראות</div>
+        <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>{t('notifications.empty')}</div>
       )}
       <div style={{ marginTop: 8 }}>
         {notifications.map((n) => (

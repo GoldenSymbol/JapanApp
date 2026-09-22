@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNotifications } from '../state/NotificationsContext';
+import { useLanguage } from '../state/LanguageContext';
 
 const SCREEN_PATH: Record<string, string> = {
   trip: '/trip', city: '/trip', today: '/today', budget: '/budget', map: '/map',
@@ -8,6 +9,7 @@ const SCREEN_PATH: Record<string, string> = {
 
 export function Toast() {
   const { toast, dismissToast, markRead } = useNotifications();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   return (
     <AnimatePresence>
@@ -28,7 +30,7 @@ export function Toast() {
                 {toast.targetScreen && SCREEN_PATH[toast.targetScreen] && (
                   <div onClick={async () => { await markRead(toast.id); navigate(SCREEN_PATH[toast.targetScreen!]); dismissToast(); }}
                     style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer' }}>
-                    הצג במסלול
+                    {t('toast.viewInItinerary')}
                   </div>
                 )}
               </div>

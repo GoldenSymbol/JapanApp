@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
+import { useLanguage } from '../state/LanguageContext';
 
 function fmtRange(a: string, b: string) {
   const [, am, ad] = a.split('-');
@@ -14,6 +15,7 @@ function fmtRange(a: string, b: string) {
 export function Trip() {
   const { destinations, refresh } = useTripData();
   const { dark, palette } = useTheme();
+  const { t, displayName } = useLanguage();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -66,9 +68,9 @@ export function Trip() {
     setAdding(true);
   }
   async function addDestination() {
-    if (!draft.nameHe.trim()) { setAddError('צריך לתת שם ליעד'); return; }
-    if (!draft.startDate || !draft.endDate) { setAddError('צריך לבחור תאריך התחלה וסיום'); return; }
-    if (draft.endDate < draft.startDate) { setAddError('תאריך הסיום צריך להיות אחרי תאריך ההתחלה'); return; }
+    if (!draft.nameHe.trim()) { setAddError(t('trip.errorNoName')); return; }
+    if (!draft.startDate || !draft.endDate) { setAddError(t('trip.errorNoDates')); return; }
+    if (draft.endDate < draft.startDate) { setAddError(t('trip.errorDateOrder')); return; }
     setAddError('');
     await api('/destinations', { method: 'POST', json: draft });
     setDraft({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
@@ -80,27 +82,27 @@ export function Trip() {
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '12px 22px 20px' }}>
         <div>
-          <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>המסלול שלי</div>
+          <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>{t('trip.title')}</div>
           <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 7 }}>
-            {destinations.length} יעדים · <span dir="ltr">{tripRange}</span>
+            {t('trip.destinationsCount', { count: destinations.length })} · <span dir="ltr">{tripRange}</span>
           </div>
         </div>
         <div className="pill" onClick={() => setEditing((v) => !v)}
           style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
-          {editing ? 'סיום' : 'עריכה'}
+          {editing ? t('common.done') : t('common.edit')}
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 22px' }}>
         {destinations.length === 0 && !editing && (
           <div style={{ border: '1px dashed var(--border)', borderRadius: 18, padding: '32px 20px', textAlign: 'center' }}>
-            <div style={{ font: "600 16px/1.4 'Noto Sans Hebrew',sans-serif" }}>עוד לא הוספת יעדים למסלול</div>
+            <div style={{ font: "600 16px/1.4 'Noto Sans Hebrew',sans-serif" }}>{t('trip.emptyTitle')}</div>
             <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
-              התחל/י לבנות את הטיול על ידי הוספת היעד הראשון שלך.
+              {t('trip.emptyDesc')}
             </div>
             <div className="btn btn-accent" style={{ marginTop: 16, padding: '10px 20px', display: 'inline-block' }}
               onClick={() => { setEditing(true); openAddForm(); }}>
-              + הוסף יעד למסלול
+              {t('trip.addDestination')}
             </div>
           </div>
         )}
@@ -124,28 +126,28 @@ export function Trip() {
                     value={nameDrafts[c.id] ?? c.nameHe}
                     onChange={(e) => setNameDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                     onBlur={() => flushName(c.id)} />
-                  <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
+                  <textarea className="field" placeholder={t('trip.notesPlaceholder')} rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
                     value={notesDrafts[c.id] ?? c.notes ?? ''}
                     onChange={(e) => setNotesDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                     onBlur={() => flushNotes(c.id)} />
                   <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
                     <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => move(c.id, 'up')}>↑</div>
                     <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => move(c.id, 'down')}>↓</div>
-                    <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center', color: 'var(--danger)' }} onClick={() => remove(c.id)}>מחק</div>
+                    <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center', color: 'var(--danger)' }} onClick={() => remove(c.id)}>{t('common.delete')}</div>
                   </div>
                 </div>
               ) : (
                 <div onClick={() => navigate(`/city/${c.id}`)} style={{ cursor: 'pointer' }}>
                   <div dir="ltr" style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', letterSpacing: '.6px', textAlign: 'right' }}>{fmtRange(c.startDate, c.endDate)}</div>
-                  <div style={{ font: "600 24px/1.2 'Noto Sans Hebrew',sans-serif", marginTop: 7 }}>{c.nameHe}</div>
+                  <div style={{ font: "600 24px/1.2 'Noto Sans Hebrew',sans-serif", marginTop: 7 }}>{displayName(c)}</div>
                   {c.notes && (
                     <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
                       {c.notes}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 7, marginTop: 14 }}>
-                    <span className="pill">{c.nights} לילות</span>
-                    <span className="pill">{c.attractionCount} אטרקציות</span>
+                    <span className="pill">{c.nights} {t('trip.nights')}</span>
+                    <span className="pill">{c.attractionCount} {t('trip.attractions')}</span>
                   </div>
                 </div>
               )}
@@ -156,36 +158,36 @@ export function Trip() {
 
         {editing && !adding && (
           <div className="btn btn-ghost" style={{ borderStyle: 'dashed', textAlign: 'center', padding: 18, borderRadius: 20 }} onClick={openAddForm}>
-            + הוסף יעד למסלול
+            {t('trip.addDestination')}
           </div>
         )}
         {editing && adding && (
           <div className="card" style={{ border: '1px dashed var(--border)', background: 'transparent' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              <input className="field" placeholder="שם היעד" value={draft.nameHe} onChange={(e) => setDraft({ ...draft, nameHe: e.target.value })} />
-              <input className="field" placeholder="שם באנגלית (משפר דיוק במפה) — אופציונלי" dir="ltr" value={draft.nameEn} onChange={(e) => setDraft({ ...draft, nameEn: e.target.value })} />
+              <input className="field" placeholder={t('trip.namePlaceholder')} value={draft.nameHe} onChange={(e) => setDraft({ ...draft, nameHe: e.target.value })} />
+              <input className="field" placeholder={t('trip.nameEnPlaceholder')} dir="ltr" value={draft.nameEn} onChange={(e) => setDraft({ ...draft, nameEn: e.target.value })} />
               <div style={{ font: "400 11px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
-                אם חוזרים לאותו מקום בהמשך הטיול, השתמשו באותו שם באנגלית (למשל "Tokyo" גם ב"טוקיו" וגם ב"טוקיו (חזרה)") — כך האטרקציות והתאריכים יתמזגו אוטומטית בין שתי הפעמים.
+                {t('trip.nameEnHint')}
               </div>
               <div style={{ display: 'flex', gap: 7 }}>
                 <input className="field" type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} />
                 <input className="field" type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} />
               </div>
               <div style={{ display: 'flex', gap: 6, background: 'var(--card-soft)', border: '1px solid var(--border)', borderRadius: 12, padding: 3 }}>
-                {(['train', 'flight'] as const).map((t) => (
-                  <div key={t} onClick={() => setDraft({ ...draft, transportIn: t })}
+                {(['train', 'flight'] as const).map((tr) => (
+                  <div key={tr} onClick={() => setDraft({ ...draft, transportIn: tr })}
                     style={{ flex: 1, textAlign: 'center', borderRadius: 9, padding: '7px 8px', fontWeight: 600, fontSize: 12.5, cursor: 'pointer',
-                      background: draft.transportIn === t ? 'var(--accent)' : 'transparent', color: draft.transportIn === t ? '#fff' : 'var(--text-dim)' }}>
-                    {t === 'train' ? 'רכבת' : 'טיסה'}
+                      background: draft.transportIn === tr ? 'var(--accent)' : 'transparent', color: draft.transportIn === tr ? '#fff' : 'var(--text-dim)' }}>
+                    {tr === 'train' ? t('trip.transportTrain') : t('trip.transportFlight')}
                   </div>
                 ))}
               </div>
-              <textarea className="field" placeholder="הערה (אופציונלי)" rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
+              <textarea className="field" placeholder={t('trip.notesPlaceholder')} rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
                 value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
               {addError && <div style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)' }}>{addError}</div>}
               <div style={{ display: 'flex', gap: 7 }}>
-                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addDestination}>הוסף</div>
-                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => { setAdding(false); setAddError(''); }}>ביטול</div>
+                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addDestination}>{t('common.add')}</div>
+                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => { setAdding(false); setAddError(''); }}>{t('common.cancel')}</div>
               </div>
             </div>
           </div>

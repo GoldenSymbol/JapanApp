@@ -4,16 +4,18 @@ import { api, apiUpload, apiDownload, ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
 import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon, EditIcon } from '../components/Icons';
 import { PdfCanvas } from '../components/PdfCanvas';
+import { useLanguage } from '../state/LanguageContext';
 
 interface FolderEntry { id: string; name: string; colorKey: string; fileCount: number; }
 interface FileEntry { id: string; fileName: string; contentType: string; size: number; uploadedByName: string; uploadedAt: string; }
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string, lang: 'he' | 'en') {
   const d = new Date(iso);
-  return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export function Documents() {
+  const { t, lang } = useLanguage();
   const [folders, setFolders] = useState<FolderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -150,7 +152,7 @@ export function Documents() {
       await apiUpload(`/documents/folders/${folderId}/files`, form);
       await Promise.all([refreshFolders(), refreshFiles(folderId)]);
     } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'שגיאה בהעלאת הקובץ');
+      showToast(e instanceof ApiError ? e.message : t('documents.uploadError'));
     } finally {
       setUploadingFolderId(null);
     }
@@ -176,10 +178,10 @@ export function Documents() {
       } else {
         const { url } = await api(`/documents/files/${file.id}/link`);
         await navigator.clipboard.writeText(url);
-        showToast('השיתוף לא נתמך בדפדפן זה — הקישור הועתק');
+        showToast(t('documents.shareUnsupported'));
       }
     } catch (e) {
-      if ((e as any)?.name !== 'AbortError') showToast('שגיאה בשיתוף הקובץ');
+      if ((e as any)?.name !== 'AbortError') showToast(t('documents.shareError'));
     } finally {
       setBusyAction(false);
       setMenuFile(null);
@@ -191,9 +193,9 @@ export function Documents() {
     try {
       const { url } = await api(`/documents/files/${file.id}/link`);
       await navigator.clipboard.writeText(url);
-      showToast('הקישור הועתק');
+      showToast(t('documents.linkCopied'));
     } catch {
-      showToast('שגיאה בהעתקת הקישור');
+      showToast(t('documents.linkCopyError'));
     } finally {
       setBusyAction(false);
       setMenuFile(null);
@@ -211,7 +213,7 @@ export function Documents() {
       await api(`/documents/files/${menuFile.id}`, { method: 'PATCH', json: { fileName: renameValue.trim() } });
       await refreshFiles(folderId);
     } catch {
-      showToast('שגיאה בשינוי השם');
+      showToast(t('documents.renameError'));
     } finally {
       setBusyAction(false);
       setMenuFile(null);
@@ -232,7 +234,7 @@ export function Documents() {
       const { url } = await api(`/documents/files/${file.id}/link`);
       setPreviewUrl(url);
     } catch {
-      showToast('שגיאה בפתיחת הקובץ');
+      showToast(t('documents.openError'));
       setPreviewFile(null);
     } finally {
       setPreviewLoading(false);
@@ -254,21 +256,21 @@ export function Documents() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '12px 22px 20px' }}>
         <div>
-          <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>מסמכי הטיול</div>
+          <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>{t('documents.title')}</div>
           <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 7 }}>
-            {folders.length} תיקיות
+            {t('documents.folderCount', { count: folders.length })}
           </div>
         </div>
         <div className="pill" onClick={() => { setEditing((v) => !v); setOpenFolderId(null); }}
           style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
-          {editing ? 'סיום' : 'עריכה'}
+          {editing ? t('common.done') : t('common.edit')}
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 22px' }}>
         {!loading && folders.length === 0 && !editing && (
           <div style={{ border: '1px dashed var(--border)', borderRadius: 18, padding: '32px 20px', textAlign: 'center' }}>
-            <div style={{ font: "600 16px/1.4 'Noto Sans Hebrew',sans-serif" }}>עוד אין תיקיות מסמכים</div>
+            <div style={{ font: "600 16px/1.4 'Noto Sans Hebrew',sans-serif" }}>{t('documents.emptyTitle')}</div>
           </div>
         )}
 
@@ -300,7 +302,7 @@ export function Documents() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ font: "600 16px 'Noto Sans Hebrew',sans-serif" }}>{f.name}</div>
-                      <div style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 3 }}>{f.fileCount} קבצים</div>
+                      <div style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 3 }}>{t('documents.fileCount', { count: f.fileCount })}</div>
                     </div>
                     <div style={{ color: 'var(--text-dim)', transform: openFolderId === f.id ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>‹</div>
                   </div>
@@ -313,12 +315,12 @@ export function Documents() {
                         <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border-soft)' }}>
                           <div className="btn btn-outline" style={{ marginTop: 14, textAlign: 'center', padding: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: uploadingFolderId === f.id ? 0.6 : 1 }}
                             onClick={() => startUpload(f.id)}>
-                            <UploadIcon /> {uploadingFolderId === f.id ? 'מעלה...' : 'העלאת קובץ'}
+                            <UploadIcon /> {uploadingFolderId === f.id ? t('documents.uploading') : t('documents.uploadFile')}
                           </div>
 
                           {(filesByFolder[f.id] || []).length === 0 ? (
                             <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', textAlign: 'center', padding: '18px 0 4px' }}>
-                              אין עדיין קבצים בתיקייה
+                              {t('documents.noFiles')}
                             </div>
                           ) : (
                             <div style={{ marginTop: 10 }}>
@@ -328,7 +330,7 @@ export function Documents() {
                                   <div style={{ color: 'var(--text-dim)', flex: 'none' }}><FileIcon /></div>
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ font: "500 13.5px 'Noto Sans Hebrew',sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.fileName}</div>
-                                    <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 2 }}>{fmtDate(file.uploadedAt)}</div>
+                                    <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 2 }}>{fmtDate(file.uploadedAt, lang)}</div>
                                   </div>
                                   <div onClick={(e) => { e.stopPropagation(); setMenuFile(file); }} style={{ color: 'var(--text-dim)', cursor: 'pointer', padding: 8, flex: 'none' }}>
                                     <DotsIcon />
@@ -349,17 +351,17 @@ export function Documents() {
 
         {editing && !adding && (
           <div className="btn btn-ghost" style={{ borderStyle: 'dashed', textAlign: 'center', padding: 18, borderRadius: 20 }} onClick={() => setAdding(true)}>
-            + הוסף תיקייה
+            {t('documents.addFolder')}
           </div>
         )}
         {editing && adding && (
           <div className="card" style={{ border: '1px dashed var(--border)', background: 'transparent' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              <input className="field" placeholder="שם התיקייה" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
+              <input className="field" placeholder={t('documents.folderNamePlaceholder')} value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addFolder()} />
               <div style={{ display: 'flex', gap: 7 }}>
-                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addFolder}>הוסף</div>
-                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => { setAdding(false); setNewFolderName(''); }}>ביטול</div>
+                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addFolder}>{t('common.add')}</div>
+                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => { setAdding(false); setNewFolderName(''); }}>{t('common.cancel')}</div>
               </div>
             </div>
           </div>
@@ -372,27 +374,27 @@ export function Documents() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", padding: '0 4px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{menuFile.fileName}</div>
             <div onClick={() => !busyAction && shareFile(menuFile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', opacity: busyAction ? 0.5 : 1 }}>
-              <ShareIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>שיתוף</span>
+              <ShareIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>{t('documents.share')}</span>
             </div>
             <div onClick={() => !busyAction && copyLink(menuFile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', opacity: busyAction ? 0.5 : 1 }}>
-              <LinkIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>העתקת קישור</span>
+              <LinkIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>{t('documents.copyLink')}</span>
             </div>
             <div onClick={() => !busyAction && startRename(menuFile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', opacity: busyAction ? 0.5 : 1 }}>
-              <EditIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>שינוי שם</span>
+              <EditIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>{t('documents.rename')}</span>
             </div>
             <div onClick={() => deleteFile(menuFile, openFolderId!)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', color: 'var(--danger)' }}>
-              <TrashIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>מחיקה</span>
+              <TrashIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>{t('documents.deleteFile')}</span>
             </div>
           </div>
         )}
         {menuFile && renaming && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", padding: '0 4px' }}>שינוי שם קובץ</div>
+            <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", padding: '0 4px' }}>{t('documents.renameTitle')}</div>
             <input className="field" value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveRename(openFolderId!)} autoFocus />
             <div style={{ display: 'flex', gap: 7 }}>
-              <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center', opacity: busyAction ? 0.6 : 1 }} onClick={() => !busyAction && saveRename(openFolderId!)}>שמירה</div>
-              <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setRenaming(false)}>ביטול</div>
+              <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center', opacity: busyAction ? 0.6 : 1 }} onClick={() => !busyAction && saveRename(openFolderId!)}>{t('common.save')}</div>
+              <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setRenaming(false)}>{t('common.cancel')}</div>
             </div>
           </div>
         )}
@@ -422,7 +424,7 @@ export function Documents() {
             </div>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {previewLoading ? (
-                <div style={{ font: "400 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>טוען...</div>
+                <div style={{ font: "400 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>{t('documents.loadingPreview')}</div>
               ) : (previewFile.contentType?.startsWith('image/') || (previewFile.contentType === 'application/pdf' && !pdfError)) ? (
                 <div
                   onPointerDown={onImagePointerDown} onPointerMove={onImagePointerMove}
@@ -445,10 +447,10 @@ export function Documents() {
               ) : (
                 <div style={{ textAlign: 'center', padding: 24 }}>
                   <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginBottom: 16 }}>
-                    אין תצוגה מקדימה זמינה לסוג הקובץ הזה
+                    {t('documents.noPreview')}
                   </div>
                   <a href={previewUrl} target="_blank" rel="noreferrer" className="btn btn-accent" style={{ padding: '11px 22px', display: 'inline-block' }}>
-                    פתיחת הקובץ
+                    {t('documents.openFile')}
                   </a>
                 </div>
               )}
@@ -466,13 +468,13 @@ export function Documents() {
               style={{ width: 'calc(100% - 52px)', maxWidth: 400, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 22, padding: 22 }}
               initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
               transition={{ type: 'spring', damping: 26, stiffness: 380 }}>
-              <div style={{ font: "600 18px/1.3 'Noto Sans Hebrew',sans-serif" }}>למחוק את התיקייה?</div>
+              <div style={{ font: "600 18px/1.3 'Noto Sans Hebrew',sans-serif" }}>{t('documents.deleteFolderTitle')}</div>
               <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 9 }}>
-                כל הקבצים שבתוכה יימחקו לצמיתות עבור כל משתתפי הטיול.
+                {t('documents.deleteFolderDesc')}
               </div>
               <div style={{ display: 'flex', gap: 9, marginTop: 20 }}>
-                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setConfirmDeleteId(null)}>ביטול</div>
-                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center', background: 'var(--danger)' }} onClick={() => deleteFolder(confirmDeleteId)}>מחק תיקייה</div>
+                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setConfirmDeleteId(null)}>{t('common.cancel')}</div>
+                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center', background: 'var(--danger)' }} onClick={() => deleteFolder(confirmDeleteId)}>{t('documents.deleteFolderConfirm')}</div>
               </div>
             </motion.div>
           </motion.div>

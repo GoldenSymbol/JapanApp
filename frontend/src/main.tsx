@@ -7,13 +7,16 @@ import './styles.css'
 import App from './App.tsx'
 import { AuthProvider } from './state/AuthContext'
 import { ThemeProvider } from './state/ThemeContext'
+import { LanguageProvider } from './state/LanguageContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <App />
+          <LanguageProvider>
+            <App />
+          </LanguageProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>

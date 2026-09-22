@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
+import { useLanguage } from '../state/LanguageContext';
 import { ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
 import logo from '../assets/logo.png';
 
 export function Login() {
   const { login, resetPassword } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,13 +21,18 @@ export function Login() {
   const [forgotBusy, setForgotBusy] = useState(false);
 
   async function submit() {
-    if (!email.trim() || !password) { setError('נא למלא את השדות החסרים'); return; }
+    if (!email.trim() || !password) { setError(t('login.missingFields')); return; }
     setError(''); setBusy(true);
     try {
       await login(email.trim(), password);
       navigate('/today');
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'שגיאה בהתחברות');
+      if (e instanceof ApiError) {
+        const code = e.payload?.error;
+        setError(code && (code.startsWith('auth/') || code === 'weak_password') ? t(`authError.${code}`) : e.message || t('login.genericError'));
+      } else {
+        setError(t('login.genericError'));
+      }
     } finally {
       setBusy(false);
     }
@@ -38,7 +45,7 @@ export function Login() {
   }
 
   async function submitForgot() {
-    if (!forgotEmail.trim()) { setForgotMsg('נא להזין כתובת אימייל'); return; }
+    if (!forgotEmail.trim()) { setForgotMsg(t('login.forgotMissingEmail')); return; }
     setForgotBusy(true);
     try {
       await resetPassword(forgotEmail.trim());
@@ -47,7 +54,7 @@ export function Login() {
       // message here would let anyone probe which emails have accounts (user enumeration).
     } finally {
       setForgotBusy(false);
-      setForgotMsg('אם קיים חשבון עם האימייל הזה, נשלח אליו קישור לאיפוס סיסמה');
+      setForgotMsg(t('login.forgotSuccess'));
     }
   }
 
@@ -58,57 +65,57 @@ export function Login() {
       </div>
 
       <div style={{ marginTop: 30 }}>
-        <div className="section-label" style={{ paddingBottom: 9 }}>אימייל</div>
+        <div className="section-label" style={{ paddingBottom: 9 }}>{t('login.email')}</div>
         <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} placeholder="you@example.com"
           value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
       <div style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 9 }}>
-          <div className="section-label">סיסמה</div>
+          <div className="section-label">{t('login.password')}</div>
           <div onClick={() => setShowPw((v) => !v)} style={{ font: "500 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', cursor: 'pointer' }}>
-            {showPw ? 'הסתר' : 'הצג'}
+            {showPw ? t('login.hide') : t('login.show')}
           </div>
         </div>
         <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} type={showPw ? 'text' : 'password'} placeholder="••••••••"
           value={password} onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()} />
         <div onClick={openForgot} style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', marginTop: 9 }}>
-          שכחתי סיסמה
+          {t('login.forgotPassword')}
         </div>
       </div>
       {error && <div style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', marginTop: 12 }}>{error}</div>}
       <div className="btn btn-accent" style={{ marginTop: 16, textAlign: 'center', padding: 16, opacity: busy ? 0.6 : 1 }} onClick={submit}>
-        התחברות
+        {t('login.submit')}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
-        <Link to="/signup" style={{ font: "600 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)' }}>יצירת חשבון חדש</Link>
+        <Link to="/signup" style={{ font: "600 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)' }}>{t('login.signupLink')}</Link>
       </div>
       <div style={{ marginTop: 26, font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>
-        לבדיקה: uri@example.com / partner@example.com, סיסמה japan2027
+        {t('login.testHint')}
       </div>
       <div style={{ marginTop: 14, display: 'flex', gap: 6, justifyContent: 'center', font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>
-        <Link to="/terms" style={{ color: 'var(--text-dim-2)', textDecoration: 'underline' }}>תנאי שימוש</Link>
+        <Link to="/terms" style={{ color: 'var(--text-dim-2)', textDecoration: 'underline' }}>{t('common.terms')}</Link>
         <span>·</span>
-        <Link to="/privacy" style={{ color: 'var(--text-dim-2)', textDecoration: 'underline' }}>מדיניות פרטיות</Link>
+        <Link to="/privacy" style={{ color: 'var(--text-dim-2)', textDecoration: 'underline' }}>{t('common.privacy')}</Link>
       </div>
 
       <Drawer open={forgotOpen} onClose={() => setForgotOpen(false)}>
-        <div style={{ font: "600 18px 'Noto Sans Hebrew',sans-serif", marginBottom: 6 }}>איפוס סיסמה</div>
+        <div style={{ font: "600 18px 'Noto Sans Hebrew',sans-serif", marginBottom: 6 }}>{t('login.forgotTitle')}</div>
         {forgotMsg ? (
           <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>{forgotMsg}</div>
         ) : (
           <>
             <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>
-              נזין את כתובת האימייל שלך ונשלח קישור לאיפוס הסיסמה.
+              {t('login.forgotDesc')}
             </div>
             <div style={{ marginTop: 16 }}>
-              <div className="section-label" style={{ paddingBottom: 9 }}>אימייל</div>
+              <div className="section-label" style={{ paddingBottom: 9 }}>{t('login.email')}</div>
               <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} placeholder="you@example.com"
                 value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && submitForgot()} />
             </div>
             <div className="btn btn-accent" style={{ marginTop: 16, textAlign: 'center', padding: 16, opacity: forgotBusy ? 0.6 : 1 }} onClick={submitForgot}>
-              שלח קישור לאיפוס
+              {t('login.forgotSubmit')}
             </div>
           </>
         )}

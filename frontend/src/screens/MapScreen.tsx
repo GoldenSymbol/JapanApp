@@ -4,7 +4,8 @@ import { MapContainer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import { api } from '../api';
 import { useTripData } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
-import { TAGS } from './City';
+import { useLanguage } from '../state/LanguageContext';
+import { TAGS, tagLabel } from './City';
 import { FitBounds, pinIcon } from '../components/LeafletHelpers';
 import { MapTiles } from '../components/MapTiles';
 
@@ -39,6 +40,7 @@ async function fetchDrivingRoute(points: [number, number][]): Promise<[number, n
 export function MapScreen() {
   const { destinations } = useTripData();
   const { dark } = useTheme();
+  const { t, lang, displayName } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const navState = location.state as { cityId?: string; placeAttractionId?: string } | null;
@@ -57,12 +59,12 @@ export function MapScreen() {
   // (highest stop number) visible — hiding the earlier visit entirely. Grouping by groupId gives
   // each real-world place a single pin listing every stop number it corresponds to.
   const countryMarkers = useMemo(() => {
-    const byGroup = new Map<string, { id: string; nameHe: string; colorKey: string; lat: number; lng: number; orders: number[] }>();
+    const byGroup = new Map<string, { id: string; nameHe: string; nameEn?: string; colorKey: string; lat: number; lng: number; orders: number[] }>();
     destinations.forEach((d, i) => {
       if (!d.lat || !d.lng) return;
       const existing = byGroup.get(d.groupId);
       if (existing) existing.orders.push(i + 1);
-      else byGroup.set(d.groupId, { id: d.id, nameHe: d.nameHe, colorKey: d.colorKey, lat: d.lat, lng: d.lng, orders: [i + 1] });
+      else byGroup.set(d.groupId, { id: d.id, nameHe: d.nameHe, nameEn: d.nameEn, colorKey: d.colorKey, lat: d.lat, lng: d.lng, orders: [i + 1] });
     });
     return [...byGroup.values()];
   }, [destinations]);
@@ -78,15 +80,15 @@ export function MapScreen() {
     legs.reduce((sum, { from, to }) => sum + haversineKm([from.lat!, from.lng!], [to.lat!, to.lng!]), 0)
   );
   const routeSummary = flightLegs.length
-    ? `${destinations.length} יעדים לפי סדר הנסיעה. טיסות: ${flightLegs.map(({ from, to }) => `${from.nameHe} ל-${to.nameHe}`).join(', ')}.`
-    : `${destinations.length} יעדים לפי סדר הנסיעה, כולם ברכבת.`;
+    ? t('map.summaryWithFlights', { count: destinations.length, flights: flightLegs.map(({ from, to }) => `${displayName(from)} → ${displayName(to)}`).join(', ') })
+    : t('map.summaryTrainOnly', { count: destinations.length });
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ padding: '12px 22px 14px' }}>
-        <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>מפת המסלול</div>
+        <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>{t('map.title')}</div>
         <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 7 }}>
-          {mode === 'country' ? 'קו מלא — רכבת · מקווקו — טיסה' : `תכנון יומי בתוך ${destinations.find((d) => d.id === cityId)?.nameHe || ''}`}
+          {mode === 'country' ? t('map.legendCountry') : t('map.legendCity', { city: displayName(destinations.find((d) => d.id === cityId) || { nameHe: '' }) })}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, margin: '0 22px 16px', background: 'var(--card-soft)', border: '1px solid var(--border)', borderRadius: 14, padding: 4 }}>
@@ -94,7 +96,7 @@ export function MapScreen() {
           <div key={m} onClick={() => setMode(m)}
             style={{ flex: 1, textAlign: 'center', borderRadius: 11, padding: '9px 8px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
               background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-dim)' }}>
-            {m === 'country' ? 'מפת יפן' : 'מפה עירונית'}
+            {m === 'country' ? t('map.tabCountry') : t('map.tabCity')}
           </div>
         ))}
       </div>
@@ -119,7 +121,7 @@ export function MapScreen() {
               })}
               {countryMarkers.map((m) => (
                 <Marker key={m.id} position={[m.lat, m.lng]}
-                  icon={pinIcon({ name: m.nameHe, dotBg: m.colorKey, dotBorder: '#F6F4EF', dotText: m.orders.join('·'), size: 20, pill: m.orders.length > 1, dark })}
+                  icon={pinIcon({ name: displayName(m), dotBg: m.colorKey, dotBorder: '#F6F4EF', dotText: m.orders.join('·'), size: 20, pill: m.orders.length > 1, dark })}
                   eventHandlers={{ click: () => navigate(`/city/${m.id}`) }} />
               ))}
             </MapContainer>
@@ -128,17 +130,17 @@ export function MapScreen() {
             {routeSummary}
           </div>
           <div style={{ padding: '6px 38px 0', font: "400 10px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', opacity: 0.7 }}>
-            © OpenStreetMap contributors · openfreemap.org
+            {t('map.attribution')}
           </div>
           <div style={{ display: 'flex', gap: 10, padding: '16px 22px 0' }}>
             <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 16, padding: 15 }}>
-              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>{totalKm.toLocaleString('he-IL')} ק״מ</div>
-              <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>מרחק מצטבר (קו אווירי)</div>
+              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>{totalKm.toLocaleString(lang === 'en' ? 'en-US' : 'he-IL')} {lang === 'en' ? 'km' : 'ק״מ'}</div>
+              <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{t('map.totalDistance')}</div>
             </div>
             <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 16, padding: 15 }}>
-              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>{legs.length} מקטעים</div>
+              <div style={{ font: "600 20px 'Noto Sans Hebrew',sans-serif" }}>{t('map.legsCount', { count: legs.length })}</div>
               <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>
-                {trainLegs.length} ברכבת{flightLegs.length ? ` + ${flightLegs.length} בטיסה` : ''}
+                {flightLegs.length ? t('map.legsByTrainAndFlight', { train: trainLegs.length, flight: flightLegs.length }) : t('map.legsByTrain', { train: trainLegs.length })}
               </div>
             </div>
           </div>
@@ -161,6 +163,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   placeAttractionId: string | null; onDonePlacing: () => void;
 }) {
   const { destinations } = useTripData();
+  const { t, displayName } = useLanguage();
   const [spots, setSpots] = useState<any[]>([]);
   const [route, setRoute] = useState<string[]>([]);
   const city = destinations.find((d) => d.id === cityId);
@@ -204,10 +207,10 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   useEffect(() => {
     if (routeLine.length < 2) { setDrivingRoute(null); return; }
     let cancelled = false;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       fetchDrivingRoute(routeLine).then((r) => { if (!cancelled) setDrivingRoute(r); });
     }, 400);
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(routeLine)]);
 
@@ -233,15 +236,15 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
           <div key={c.id} onClick={() => setCityId(c.id)}
             style={{ flex: 'none', borderRadius: 999, padding: '8px 14px', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap',
               border: `1px solid ${city.groupId === c.groupId ? 'var(--accent)' : 'var(--border)'}`, color: city.groupId === c.groupId ? 'var(--accent)' : 'var(--text)' }}>
-            {c.nameHe}
+            {displayName(c)}
           </div>
         ))}
       </div>
       {placingSpot && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, margin: '0 22px 12px', padding: '10px 14px',
           border: '1px solid var(--accent)', borderRadius: 14, background: 'var(--card-soft)' }}>
-          <div style={{ font: "500 12.5px/1.4 'Noto Sans Hebrew',sans-serif" }}>הקש/י על המפה כדי לסמן את המיקום של <b>{placingSpot.nameHe}</b></div>
-          <div onClick={onDonePlacing} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', flex: 'none' }}>ביטול</div>
+          <div style={{ font: "500 12.5px/1.4 'Noto Sans Hebrew',sans-serif" }}>{t('map.placingHint')} <b>{displayName(placingSpot)}</b></div>
+          <div onClick={onDonePlacing} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', flex: 'none' }}>{t('common.cancel')}</div>
         </div>
       )}
       <div style={{ margin: '0 22px', border: `1px solid ${placingSpot ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
@@ -258,7 +261,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
               return (
                 <Marker key={s.id} position={[s.lat, s.lng]}
                   icon={pinIcon({
-                    name: s.nameHe,
+                    name: displayName(s),
                     dotBg: inRoute ? '#D9564B' : '#14161A',
                     dotBorder: inRoute ? '#F6F4EF' : tagColor,
                     dotText: inRoute ? String(orderIdx + 1) : '',
@@ -273,14 +276,14 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
         )}
       </div>
       <div style={{ padding: '13px 38px 0', font: "400 11.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
-        הקש על סימון במפה כדי להוסיף אותו למסלול היומי — הקו האדום מציג את הסדר.
+        {t('map.cityHint')}
       </div>
       <div style={{ padding: '6px 38px 0', font: "400 10px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', opacity: 0.7 }}>
-        © OpenStreetMap contributors · openfreemap.org
+        {t('map.attribution')}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 22px 6px' }}>
-        <div className="section-label">{route.length ? `המסלול העירוני · ${route.length} עצירות` : 'המסלול העירוני'}</div>
-        <div onClick={() => setRoute([])} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer' }}>נקה</div>
+        <div className="section-label">{route.length ? t('map.routeHeaderWithCount', { count: route.length }) : t('map.routeHeader')}</div>
+        <div onClick={() => setRoute([])} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer' }}>{t('map.clear')}</div>
       </div>
       {route.length ? (
         <div style={{ padding: '0 22px' }}>
@@ -291,14 +294,14 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
               <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderTop: '1px solid var(--border-soft)' }}>
                 <div style={{ width: 26, height: 26, flex: 'none', borderRadius: '50%', background: 'var(--danger)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 12 }}>{i + 1}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: "600 14.5px/1.3 'Noto Sans Hebrew',sans-serif" }}>{s.nameHe}</div>
+                  <div style={{ font: "600 14.5px/1.3 'Noto Sans Hebrew',sans-serif" }}>{displayName(s)}</div>
                   <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 3 }}>
-                    {[TAGS[s.tag]?.label, s.duration, s.day].filter(Boolean).join(' · ')}
+                    {[tagLabel(s.tag, t), s.duration, s.day].filter(Boolean).join(' · ')}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                   <div className="btn btn-outline" style={{ padding: '6px 10px' }} onClick={() => moveUp(id)}>↑</div>
-                  <div className="btn btn-outline" style={{ padding: '6px 10px', color: 'var(--danger)' }} onClick={() => toggleRoute(id)}>הסר</div>
+                  <div className="btn btn-outline" style={{ padding: '6px 10px', color: 'var(--danger)' }} onClick={() => toggleRoute(id)}>{t('city.remove')}</div>
                 </div>
               </div>
             );
@@ -306,7 +309,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
         </div>
       ) : (
         <div style={{ margin: '0 22px', border: '1px dashed var(--border)', borderRadius: 18, padding: 20, textAlign: 'center', font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
-          עוד לא בחרת אטרקציות למסלול העירוני. הקש על הסימונים במפה לפי הסדר שבו תרצה לעבור ביניהם.
+          {t('map.routeEmpty')}
         </div>
       )}
     </>

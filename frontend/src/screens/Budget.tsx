@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
+import { useLanguage } from '../state/LanguageContext';
 
-const CURRENCIES: Record<string, { label: string; symbol: string }> = {
-  ILS: { label: '₪ שקל', symbol: '₪' },
-  JPY: { label: '¥ יין', symbol: '¥' },
-  USD: { label: '$ דולר', symbol: '$' },
-  EUR: { label: '€ אירו', symbol: '€' },
-};
+const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
+const CURRENCY_SYMBOLS: Record<string, string> = { ILS: '₪', JPY: '¥', USD: '$', EUR: '€' };
 
 function fmtCur(amount: number, code: string) {
   if (code === 'JPY') return Math.round(amount).toLocaleString('en-US');
@@ -15,6 +12,7 @@ function fmtCur(amount: number, code: string) {
 }
 
 function Converter() {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(true);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [from, setFrom] = useState('ILS');
@@ -35,8 +33,8 @@ function Converter() {
   return (
     <div style={{ marginTop: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="section-label">מחשבון המרה</div>
-        <div className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)' }} onClick={() => setOpen((v) => !v)}>{open ? 'סגור' : 'פתח'}</div>
+        <div className="section-label">{t('budget.converterTitle')}</div>
+        <div className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)' }} onClick={() => setOpen((v) => !v)}>{open ? t('budget.close') : t('budget.open')}</div>
       </div>
       {open && (
         <div className="card" style={{ marginTop: 10, background: 'var(--card)' }}>
@@ -44,22 +42,22 @@ function Converter() {
             <input className="field" style={{ flex: 1, textAlign: 'right', direction: 'ltr' }} value={amount} placeholder="1000" onChange={(e) => setAmount(e.target.value)} />
             <div onClick={() => { setFrom(to); setTo(from); }} style={{ cursor: 'pointer', color: 'var(--accent)', fontSize: 18, flex: 'none' }}>⇄</div>
           </div>
-          <div className="section-label" style={{ padding: '14px 0 6px' }}>מ־</div>
+          <div className="section-label" style={{ padding: '14px 0 6px' }}>{t('budget.from')}</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {Object.keys(CURRENCIES).map((c) => (
-              <div key={c} onClick={() => pick('from', c)} className="pill" style={{ cursor: 'pointer', border: `1px solid ${from === c ? 'var(--accent)' : 'var(--border)'}`, color: from === c ? 'var(--accent)' : 'var(--text-dim)' }}>{CURRENCIES[c].label}</div>
+            {CURRENCY_KEYS.map((c) => (
+              <div key={c} onClick={() => pick('from', c)} className="pill" style={{ cursor: 'pointer', border: `1px solid ${from === c ? 'var(--accent)' : 'var(--border)'}`, color: from === c ? 'var(--accent)' : 'var(--text-dim)' }}>{t(`currency.${c}`)}</div>
             ))}
           </div>
-          <div className="section-label" style={{ padding: '10px 0 6px' }}>ל־</div>
+          <div className="section-label" style={{ padding: '10px 0 6px' }}>{t('budget.to')}</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {Object.keys(CURRENCIES).map((c) => (
-              <div key={c} onClick={() => pick('to', c)} className="pill" style={{ cursor: 'pointer', border: `1px solid ${to === c ? 'var(--accent)' : 'var(--border)'}`, color: to === c ? 'var(--accent)' : 'var(--text-dim)' }}>{CURRENCIES[c].label}</div>
+            {CURRENCY_KEYS.map((c) => (
+              <div key={c} onClick={() => pick('to', c)} className="pill" style={{ cursor: 'pointer', border: `1px solid ${to === c ? 'var(--accent)' : 'var(--border)'}`, color: to === c ? 'var(--accent)' : 'var(--text-dim)' }}>{t(`currency.${c}`)}</div>
             ))}
           </div>
           <div style={{ marginTop: 16, direction: 'ltr', textAlign: 'left' }}>
-            <div style={{ font: "600 27px/1.2 'Noto Sans Hebrew',sans-serif" }}>{CURRENCIES[to].symbol}{fmtCur(result, to)}</div>
+            <div style={{ font: "600 27px/1.2 'Noto Sans Hebrew',sans-serif" }}>{CURRENCY_SYMBOLS[to]}{fmtCur(result, to)}</div>
             <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 6 }}>
-              1 {CURRENCIES[from].symbol} = {fmtCur(rate, to)} {CURRENCIES[to].symbol} · שערים משוערים, לעדכן לפני הטיסה
+              1 {CURRENCY_SYMBOLS[from]} = {fmtCur(rate, to)} {CURRENCY_SYMBOLS[to]} · {t('budget.rateNote')}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
@@ -109,17 +107,18 @@ function PieChart({ slices, size = 200 }: { slices: { label: string; value: numb
 }
 
 function BudgetPieView({ data }: { data: any }) {
+  const { t } = useLanguage();
   const remaining = Math.max(0, data.total - data.paid);
   const slices = [
     ...data.categories.map((c: any, i: number) => ({ label: c.name, value: c.spent, color: PIE_COLORS[i % PIE_COLORS.length] })),
-    ...(remaining > 0 ? [{ label: 'נותר בתקציב', value: remaining, color: REMAINING_COLOR }] : []),
+    ...(remaining > 0 ? [{ label: t('budget.remaining'), value: remaining, color: REMAINING_COLOR }] : []),
   ];
   const sum = slices.reduce((s, x) => s + x.value, 0);
 
   if (sum <= 0) {
     return (
       <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
-        אין עדיין הוצאות או תקציב להצגה בתרשים.
+        {t('budget.noExpenses')}
       </div>
     );
   }
@@ -146,6 +145,7 @@ function BudgetPieView({ data }: { data: any }) {
 // Shared UI for both the group budget (basePath="/budget") and each member's own private
 // personal budget (basePath="/budget/personal") — same shape of data, same interactions.
 function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart }: { basePath: string; title: string; subtitle?: string; newCategoryLabel: string; allowChart?: boolean }) {
+  const { t } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
@@ -179,7 +179,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
           {subtitle && <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{subtitle}</div>}
         </div>
         <div className="pill" onClick={() => setEditing((v) => !v)} style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
-          {editing ? 'סיום' : 'עריכה'}
+          {editing ? t('common.done') : t('common.edit')}
         </div>
       </div>
 
@@ -187,39 +187,39 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
         {editing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <div className="section-label" style={{ paddingBottom: 6 }}>תקציב כולל (₪)</div>
+              <div className="section-label" style={{ paddingBottom: 6 }}>{t('budget.totalLabel')}</div>
               <input className="field" style={{ fontWeight: 600 }} type="number" value={totalDraft} placeholder={String(data.total)}
                 onChange={(e) => setTotalDraft(e.target.value)}
                 onBlur={(e) => { if (e.target.value.trim() !== '') setTotal(Number(e.target.value)); setTotalDraft(''); }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 2 }}>
-              <div style={{ font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>שולם עד כה (סכום כל הקטגוריות)</div>
+              <div style={{ font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>{t('budget.paidSoFar')}</div>
               <div style={{ font: "600 17px 'Noto Sans Hebrew',sans-serif" }}>₪{data.paid.toLocaleString('en-US')}</div>
             </div>
           </div>
         ) : (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={{ font: "600 15px 'Noto Sans Hebrew',sans-serif" }}>שולם עד כה</div>
+              <div style={{ font: "600 15px 'Noto Sans Hebrew',sans-serif" }}>{t('budget.paidSoFarShort')}</div>
               <div style={{ font: "600 22px 'Noto Sans Hebrew',sans-serif" }}>₪{data.paid.toLocaleString('en-US')}</div>
             </div>
             <div style={{ height: 6, borderRadius: 3, background: 'var(--card-soft-2)', marginTop: 12, overflow: 'hidden' }}>
               <div style={{ width: `${paidPct}%`, height: '100%', background: 'var(--accent)' }} />
             </div>
-            <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>{paidPct}% מהתקציב · סכום כל הקטגוריות</div>
+            <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>{t('budget.paidPctOfBudget', { pct: paidPct })}</div>
           </>
         )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 10px' }}>
-        <div className="section-label" style={{ padding: 0 }}>לפי קטגוריה</div>
+        <div className="section-label" style={{ padding: 0 }}>{t('budget.byCategory')}</div>
         {allowChart && !editing && data.categories.length > 0 && (
           <div style={{ display: 'flex', gap: 4, background: 'var(--card-soft)', border: '1px solid var(--border)', borderRadius: 10, padding: 3 }}>
             {(['list', 'chart'] as const).map((v) => (
               <div key={v} onClick={() => setView(v)}
                 style={{ padding: '5px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
                   background: view === v ? 'var(--accent)' : 'transparent', color: view === v ? '#fff' : 'var(--text-dim)' }}>
-                {v === 'list' ? 'רשימה' : 'עוגה'}
+                {v === 'list' ? t('budget.viewList') : t('budget.viewChart')}
               </div>
             ))}
           </div>
@@ -244,7 +244,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
                   onChange={(e) => setNameDrafts((v) => ({ ...v, [c.id]: e.target.value }))}
                   onBlur={(e) => { if (e.target.value.trim() !== '') renameCat(c.id, e.target.value); setNameDrafts((v) => ({ ...v, [c.id]: '' })); }} />
                 <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", flex: 'none' }}>₪{c.spent.toLocaleString('en-US')}</div>
-                <div onClick={() => deleteCat(c.id)} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', cursor: 'pointer', flex: 'none' }}>מחק</div>
+                <div onClick={() => deleteCat(c.id)} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', cursor: 'pointer', flex: 'none' }}>{t('common.delete')}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -262,16 +262,23 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
             )}
             {editing && (
               <div style={{ marginTop: 10, display: 'flex', gap: 7, alignItems: 'center' }}>
-                <input className="field" style={{ flex: 1, borderStyle: 'dashed' }} placeholder="הוסף הוצאה (₪)" value={addVals[c.id] || ''}
+                <input className="field" style={{ flex: 1, borderStyle: 'dashed' }} placeholder={t('budget.addExpensePlaceholder')} value={addVals[c.id] || ''}
                   onChange={(e) => setAddVals((v) => ({ ...v, [c.id]: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && applyTx(c.id, 'add')} />
-                <div className="btn btn-accent" onClick={() => applyTx(c.id, 'add')}>הוסף</div>
-                <div className="btn btn-outline" onClick={() => applyTx(c.id, 'subtract')}>הורד</div>
+                <div className="btn btn-accent" onClick={() => applyTx(c.id, 'add')}>{t('budget.addTx')}</div>
+                <div className="btn btn-outline" onClick={() => applyTx(c.id, 'subtract')}>{t('budget.subtractTx')}</div>
               </div>
             )}
             {editing && (
               <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 6 }}>
-                {addVals[c.id] ? `${c.spent.toLocaleString('en-US')} + ${addVals[c.id]} = ${(c.spent + (parseFloat(addVals[c.id]) || 0)).toLocaleString('en-US')} · או ${Math.max(0, c.spent - (parseFloat(addVals[c.id]) || 0)).toLocaleString('en-US')} אם מורידים` : `סה״כ בקטגוריה: ₪${c.spent.toLocaleString('en-US')}`}
+                {addVals[c.id]
+                  ? t('budget.categoryMath', {
+                      spent: c.spent.toLocaleString('en-US'),
+                      add: addVals[c.id],
+                      sum: (c.spent + (parseFloat(addVals[c.id]) || 0)).toLocaleString('en-US'),
+                      sub: Math.max(0, c.spent - (parseFloat(addVals[c.id]) || 0)).toLocaleString('en-US'),
+                    })
+                  : t('budget.categoryTotal', { amount: c.spent.toLocaleString('en-US') })}
               </div>
             )}
           </motion.div>
@@ -281,7 +288,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
       )}
       {editing && (
         <div className="btn btn-ghost" style={{ marginTop: 14, textAlign: 'center', padding: 16, borderStyle: 'dashed', borderRadius: 20 }} onClick={addCategory}>
-          + הוסף קטגוריה
+          {t('budget.addCategory')}
         </div>
       )}
     </div>
@@ -289,12 +296,13 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
 }
 
 export function Budget() {
+  const { t } = useLanguage();
   const [mode, setMode] = useState<'general' | 'personal'>('general');
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 22px calc(102px + env(safe-area-inset-bottom))' }}>
       <div style={{ padding: '12px 0 20px' }}>
-        <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>תקציב</div>
+        <div style={{ font: "600 30px/1.15 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.5px' }}>{t('budget.title')}</div>
       </div>
 
       <div style={{ display: 'flex', gap: 6, margin: '0 0 20px', background: 'var(--card-soft)', border: '1px solid var(--border)', borderRadius: 14, padding: 4 }}>
@@ -302,15 +310,15 @@ export function Budget() {
           <div key={m} onClick={() => setMode(m)}
             style={{ flex: 1, textAlign: 'center', borderRadius: 11, padding: '9px 8px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
               background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-dim)' }}>
-            {m === 'general' ? 'תקציב כללי' : 'תקציב אישי'}
+            {m === 'general' ? t('budget.tabGeneral') : t('budget.tabPersonal')}
           </div>
         ))}
       </div>
 
       {mode === 'general' ? (
-        <BudgetSection basePath="/budget" title="תקציב כללי" subtitle="כל ההוצאות של הקבוצה יחד" newCategoryLabel="קטגוריה חדשה" allowChart />
+        <BudgetSection basePath="/budget" title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
       ) : (
-        <BudgetSection basePath="/budget/personal" title="התקציב האישי שלי" newCategoryLabel="הוצאה אישית חדשה" allowChart />
+        <BudgetSection basePath="/budget/personal" title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
       )}
 
       <Converter />
