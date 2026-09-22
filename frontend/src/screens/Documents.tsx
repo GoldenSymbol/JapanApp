@@ -38,6 +38,54 @@ export function Documents() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // Hand-rolled pinch-zoom/pan for the image preview: the app's own viewport meta disables
+  // page-level pinch zoom everywhere (that's what stops inputs from auto-zooming on focus), so
+  // native browser pinch-to-zoom isn't available here — this reproduces it scoped to just the
+  // previewed image via a CSS transform driven by pointer events.
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [gesturing, setGesturing] = useState(false);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStart = useRef<{ dist: number; zoom: number } | null>(null);
+  const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+
+  function resetZoom() {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }
+  function onImagePointerDown(e: React.PointerEvent) {
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    setGesturing(true);
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinchStart.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), zoom };
+      panStart.current = null;
+    } else if (pointers.current.size === 1) {
+      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    }
+  }
+  function onImagePointerMove(e: React.PointerEvent) {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2 && pinchStart.current) {
+      const [a, b] = [...pointers.current.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      setZoom(Math.min(4, Math.max(1, pinchStart.current.zoom * (dist / pinchStart.current.dist))));
+    } else if (pointers.current.size === 1 && panStart.current && zoom > 1) {
+      setPan({ x: panStart.current.panX + (e.clientX - panStart.current.x), y: panStart.current.panY + (e.clientY - panStart.current.y) });
+    }
+  }
+  function onImagePointerUp(e: React.PointerEvent) {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinchStart.current = null;
+    if (pointers.current.size === 0) {
+      panStart.current = null;
+      setGesturing(false);
+      if (zoom < 1.05) resetZoom();
+    }
+  }
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(''), 2200);
@@ -170,6 +218,7 @@ export function Documents() {
   // Preview uses the same signed URL as "copy link" — an <img>/<iframe> can't carry an
   // Authorization header, so the backend's own auth-gated /download route isn't usable here.
   async function openPreview(file: FileEntry) {
+    resetZoom();
     setPreviewFile(file);
     setPreviewLoading(true);
     try {
@@ -185,6 +234,7 @@ export function Documents() {
   function closePreview() {
     setPreviewFile(null);
     setPreviewUrl('');
+    resetZoom();
   }
 
   return (
@@ -352,13 +402,27 @@ export function Documents() {
                 {previewFile.fileName}
               </div>
             </div>
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {previewLoading ? (
                 <div style={{ font: "400 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>טוען...</div>
               ) : previewFile.contentType?.startsWith('image/') ? (
-                <img src={previewUrl} alt={previewFile.fileName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                <div
+                  onPointerDown={onImagePointerDown} onPointerMove={onImagePointerMove}
+                  onPointerUp={onImagePointerUp} onPointerCancel={onImagePointerUp}
+                  onDoubleClick={() => (zoom > 1 ? resetZoom() : setZoom(2))}
+                  style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none' }}>
+                  <img src={previewUrl} alt={previewFile.fileName} draggable={false}
+                    style={{
+                      maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none',
+                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                      transition: gesturing ? 'none' : 'transform .2s ease-out',
+                    }} />
+                </div>
               ) : previewFile.contentType === 'application/pdf' ? (
-                <iframe src={previewUrl} title={previewFile.fileName} style={{ width: '100%', height: '100%', border: 'none' }} />
+                // #view=FitH hints the browser's built-in PDF viewer to open fit-to-width
+                // instead of whatever zoom level it defaults/remembers — pinch-zoom inside it
+                // is native (the OS PDF renderer, independent of this page's own viewport meta).
+                <iframe src={`${previewUrl}#view=FitH`} title={previewFile.fileName} style={{ width: '100%', height: '100%', border: 'none' }} />
               ) : (
                 <div style={{ textAlign: 'center', padding: 24 }}>
                   <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginBottom: 16 }}>
