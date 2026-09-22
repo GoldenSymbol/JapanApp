@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, apiUpload, apiDownload, ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
-import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon } from '../components/Icons';
+import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon, EditIcon } from '../components/Icons';
 
 interface FolderEntry { id: string; name: string; colorKey: string; fileCount: number; }
 interface FileEntry { id: string; fileName: string; contentType: string; size: number; uploadedByName: string; uploadedAt: string; }
@@ -30,6 +30,13 @@ export function Documents() {
   const [menuFile, setMenuFile] = useState<FileEntry | null>(null);
   const [busyAction, setBusyAction] = useState(false);
   const [toast, setToast] = useState('');
+
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+
+  const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -141,6 +148,45 @@ export function Documents() {
     }
   }
 
+  function startRename(file: FileEntry) {
+    setRenameValue(file.fileName);
+    setRenaming(true);
+  }
+  async function saveRename(folderId: string) {
+    if (!menuFile || !renameValue.trim()) return;
+    setBusyAction(true);
+    try {
+      await api(`/documents/files/${menuFile.id}`, { method: 'PATCH', json: { fileName: renameValue.trim() } });
+      await refreshFiles(folderId);
+    } catch {
+      showToast('שגיאה בשינוי השם');
+    } finally {
+      setBusyAction(false);
+      setMenuFile(null);
+      setRenaming(false);
+    }
+  }
+
+  // Preview uses the same signed URL as "copy link" — an <img>/<iframe> can't carry an
+  // Authorization header, so the backend's own auth-gated /download route isn't usable here.
+  async function openPreview(file: FileEntry) {
+    setPreviewFile(file);
+    setPreviewLoading(true);
+    try {
+      const { url } = await api(`/documents/files/${file.id}/link`);
+      setPreviewUrl(url);
+    } catch {
+      showToast('שגיאה בפתיחת הקובץ');
+      setPreviewFile(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+  function closePreview() {
+    setPreviewFile(null);
+    setPreviewUrl('');
+  }
+
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
       <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={onFileChosen} />
@@ -216,13 +262,14 @@ export function Documents() {
                           ) : (
                             <div style={{ marginTop: 10 }}>
                               {(filesByFolder[f.id] || []).map((file) => (
-                                <div key={file.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderTop: '1px solid var(--border-soft)' }}>
+                                <div key={file.id} onClick={() => openPreview(file)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderTop: '1px solid var(--border-soft)', cursor: 'pointer' }}>
                                   <div style={{ color: 'var(--text-dim)', flex: 'none' }}><FileIcon /></div>
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ font: "500 13.5px 'Noto Sans Hebrew',sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.fileName}</div>
                                     <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 2 }}>{fmtDate(file.uploadedAt)}</div>
                                   </div>
-                                  <div onClick={() => setMenuFile(file)} style={{ color: 'var(--text-dim)', cursor: 'pointer', padding: 8, flex: 'none' }}>
+                                  <div onClick={(e) => { e.stopPropagation(); setMenuFile(file); }} style={{ color: 'var(--text-dim)', cursor: 'pointer', padding: 8, flex: 'none' }}>
                                     <DotsIcon />
                                   </div>
                                 </div>
@@ -259,8 +306,8 @@ export function Documents() {
       </div>
 
       {/* Per-file action menu */}
-      <Drawer open={!!menuFile} onClose={() => setMenuFile(null)}>
-        {menuFile && (
+      <Drawer open={!!menuFile} onClose={() => { setMenuFile(null); setRenaming(false); }}>
+        {menuFile && !renaming && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", padding: '0 4px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{menuFile.fileName}</div>
             <div onClick={() => !busyAction && shareFile(menuFile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', opacity: busyAction ? 0.5 : 1 }}>
@@ -269,12 +316,63 @@ export function Documents() {
             <div onClick={() => !busyAction && copyLink(menuFile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', opacity: busyAction ? 0.5 : 1 }}>
               <LinkIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>העתקת קישור</span>
             </div>
+            <div onClick={() => !busyAction && startRename(menuFile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', opacity: busyAction ? 0.5 : 1 }}>
+              <EditIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>שינוי שם</span>
+            </div>
             <div onClick={() => deleteFile(menuFile, openFolderId!)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', cursor: 'pointer', color: 'var(--danger)' }}>
               <TrashIcon /><span style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>מחיקה</span>
             </div>
           </div>
         )}
+        {menuFile && renaming && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", padding: '0 4px' }}>שינוי שם קובץ</div>
+            <input className="field" value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveRename(openFolderId!)} autoFocus />
+            <div style={{ display: 'flex', gap: 7 }}>
+              <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center', opacity: busyAction ? 0.6 : 1 }} onClick={() => !busyAction && saveRename(openFolderId!)}>שמירה</div>
+              <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setRenaming(false)}>ביטול</div>
+            </div>
+          </div>
+        )}
       </Drawer>
+
+      {/* File preview */}
+      <AnimatePresence>
+        {previewFile && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: 'calc(12px + env(safe-area-inset-top)) 18px 12px',
+              borderBottom: '1px solid var(--border-soft)', flex: 'none',
+            }}>
+              <div onClick={closePreview} style={{ cursor: 'pointer', fontSize: 20, color: 'var(--text-dim)', padding: 4 }}>✕</div>
+              <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {previewFile.fileName}
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}>
+              {previewLoading ? (
+                <div style={{ font: "400 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>טוען...</div>
+              ) : previewFile.contentType?.startsWith('image/') ? (
+                <img src={previewUrl} alt={previewFile.fileName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              ) : previewFile.contentType === 'application/pdf' ? (
+                <iframe src={previewUrl} title={previewFile.fileName} style={{ width: '100%', height: '100%', border: 'none' }} />
+              ) : (
+                <div style={{ textAlign: 'center', padding: 24 }}>
+                  <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginBottom: 16 }}>
+                    אין תצוגה מקדימה זמינה לסוג הקובץ הזה
+                  </div>
+                  <a href={previewUrl} target="_blank" rel="noreferrer" className="btn btn-accent" style={{ padding: '11px 22px', display: 'inline-block' }}>
+                    פתיחת הקובץ
+                  </a>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Confirm folder delete */}
       <AnimatePresence>

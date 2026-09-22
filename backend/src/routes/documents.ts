@@ -155,6 +155,20 @@ async function requireOwnedFile(req: AuthedRequest, res: any, trip: any) {
   return doc;
 }
 
+// Renames the file as displayed in the app only — the underlying Storage object keeps its
+// original path (which already embeds the original filename for GCS-console browsability, see
+// the upload handler above). No need to move/copy the actual object for a display-name change.
+documentsRouter.patch("/documents/files/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const doc = await requireOwnedFile(req, res, trip);
+  if (!doc) return;
+  const fileName = String(req.body?.fileName || "").trim();
+  if (!fileName) return res.status(400).json({ error: "invalid_input" });
+  await doc.ref.update({ fileName });
+  res.json({ ok: true });
+});
+
 documentsRouter.delete("/documents/files/:id", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
