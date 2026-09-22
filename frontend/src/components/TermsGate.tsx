@@ -15,7 +15,7 @@ export function TermsGate() {
   const [error, setError] = useState('');
 
   async function submit() {
-    if (!agreed) return;
+    if (!agreed) { setError('צריך לאשר את תנאי השימוש כדי להמשיך'); return; }
     setBusy(true); setError('');
     try {
       await acceptTerms();
