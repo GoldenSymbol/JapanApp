@@ -52,6 +52,11 @@ export function PdfCanvas({ url, page, onNumPages, onError }: {
       canvas.style.height = `${viewport.height / ((window.devicePixelRatio || 1) * 1.5)}px`;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      // CanvasRenderingContext2D.direction defaults to "inherit", which picks up the app's
+      // global <html dir="rtl">. PDF.js's own text drawing doesn't set it, so every fillText()
+      // call was running right-to-left — mirroring bracket pairs (e.g. "(ADT)" -> ")ADT (")
+      // and drawing each run from the wrong end, clipping/overlapping the leading characters.
+      ctx.direction = 'ltr';
       try {
         await pdfPage.render({ canvasContext: ctx, viewport, canvas }).promise;
       } catch (e) {
