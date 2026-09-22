@@ -101,7 +101,10 @@ export function MapScreen() {
 
       {mode === 'country' ? (
         <>
-          <div style={{ margin: '0 22px', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden' }}>
+          {/* isolation:'isolate' traps Leaflet's internal panes/controls (z-index up to 1000) inside
+              this box's own stacking context — without it they compare directly against unrelated
+              fixed-position UI like the translate drawer (z-index 40) and render on top of it. */}
+          <div style={{ margin: '0 22px', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
             <MapContainer center={[36.5, 138]} zoom={5} style={{ height: 430, width: '100%' }} scrollWheelZoom={true} attributionControl={false}>
               <MapTiles dark={dark} />
               <FitBounds points={points} />
@@ -241,7 +244,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
           <div onClick={onDonePlacing} style={{ font: "600 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', flex: 'none' }}>ביטול</div>
         </div>
       )}
-      <div style={{ margin: '0 22px', border: `1px solid ${placingSpot ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, overflow: 'hidden' }}>
+      <div style={{ margin: '0 22px', border: `1px solid ${placingSpot ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
         {city.lat && city.lng && (
           <MapContainer key={cityId} center={[city.lat, city.lng]} zoom={12} style={{ height: 400, width: '100%', cursor: placingSpot ? 'crosshair' : undefined }} scrollWheelZoom={true} attributionControl={false}>
             <MapTiles dark={dark} />

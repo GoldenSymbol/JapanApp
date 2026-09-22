@@ -21,7 +21,7 @@ authRouter.post("/bootstrap", requireAuth, async (req: AuthedRequest, res) => {
 
 authRouter.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   const user = await getUserDoc(req.userId!);
-  if (!user) return res.status(404).json({ error: "not_found" });
+  if (!user) return res.status(404).json({ error: "not_found", message: "לא הצלחנו לטעון את הפרופיל שלך, נסה/י שוב" });
   const trip = await getMyTrip(req.userId!);
   res.json({ user: publicUser(req.userId!, user), trip: trip ? { id: trip.id, name: trip.name } : null, currentTermsVersion: TERMS_VERSION });
 });

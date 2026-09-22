@@ -14,10 +14,13 @@ export function Signup() {
   const [busy, setBusy] = useState(false);
 
   async function submit() {
+    if (!name.trim()) { setError('נא להזין שם'); return; }
+    if (!email.trim()) { setError('נא להזין כתובת אימייל'); return; }
+    if (!password) { setError('נא להזין סיסמה'); return; }
     if (!agreedToTerms) { setError('צריך לאשר את תנאי השימוש כדי להמשיך'); return; }
     setError(''); setBusy(true);
     try {
-      await signup(name, email, password);
+      await signup(name.trim(), email.trim(), password);
       navigate('/choose');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'שגיאה ביצירת חשבון');
