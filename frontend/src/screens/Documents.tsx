@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api, apiUpload, apiDownload, ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
 import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon, EditIcon } from '../components/Icons';
+import { PdfCanvas } from '../components/PdfCanvas';
 
 interface FolderEntry { id: string; name: string; colorKey: string; fileCount: number; }
 interface FileEntry { id: string; fileName: string; contentType: string; size: number; uploadedByName: string; uploadedAt: string; }
@@ -37,6 +38,9 @@ export function Documents() {
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfNumPages, setPdfNumPages] = useState(1);
+  const [pdfError, setPdfError] = useState(false);
 
   // Hand-rolled pinch-zoom/pan for the image preview: the app's own viewport meta disables
   // page-level pinch zoom everywhere (that's what stops inputs from auto-zooming on focus), so
@@ -219,6 +223,9 @@ export function Documents() {
   // Authorization header, so the backend's own auth-gated /download route isn't usable here.
   async function openPreview(file: FileEntry) {
     resetZoom();
+    setPdfPage(1);
+    setPdfNumPages(1);
+    setPdfError(false);
     setPreviewFile(file);
     setPreviewLoading(true);
     try {
@@ -235,6 +242,10 @@ export function Documents() {
     setPreviewFile(null);
     setPreviewUrl('');
     resetZoom();
+  }
+  function changePdfPage(delta: number) {
+    resetZoom();
+    setPdfPage((p) => Math.min(pdfNumPages, Math.max(1, p + delta)));
   }
 
   return (
@@ -401,28 +412,36 @@ export function Documents() {
               <div style={{ font: "600 14px 'Noto Sans Hebrew',sans-serif", flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {previewFile.fileName}
               </div>
+              {previewFile.contentType === 'application/pdf' && !pdfError && pdfNumPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
+                  <div onClick={() => pdfPage > 1 && changePdfPage(-1)} style={{ cursor: pdfPage > 1 ? 'pointer' : 'default', opacity: pdfPage > 1 ? 1 : 0.3, fontSize: 18, padding: 4 }}>›</div>
+                  <div dir="ltr" style={{ font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>{pdfPage} / {pdfNumPages}</div>
+                  <div onClick={() => pdfPage < pdfNumPages && changePdfPage(1)} style={{ cursor: pdfPage < pdfNumPages ? 'pointer' : 'default', opacity: pdfPage < pdfNumPages ? 1 : 0.3, fontSize: 18, padding: 4 }}>‹</div>
+                </div>
+              )}
             </div>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {previewLoading ? (
                 <div style={{ font: "400 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>טוען...</div>
-              ) : previewFile.contentType?.startsWith('image/') ? (
+              ) : (previewFile.contentType?.startsWith('image/') || (previewFile.contentType === 'application/pdf' && !pdfError)) ? (
                 <div
                   onPointerDown={onImagePointerDown} onPointerMove={onImagePointerMove}
                   onPointerUp={onImagePointerUp} onPointerCancel={onImagePointerUp}
                   onDoubleClick={() => (zoom > 1 ? resetZoom() : setZoom(2))}
                   style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none' }}>
-                  <img src={previewUrl} alt={previewFile.fileName} draggable={false}
-                    style={{
-                      maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none',
-                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                      transition: gesturing ? 'none' : 'transform .2s ease-out',
-                    }} />
+                  <div style={{
+                    width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transition: gesturing ? 'none' : 'transform .2s ease-out',
+                  }}>
+                    {previewFile.contentType?.startsWith('image/') ? (
+                      <img src={previewUrl} alt={previewFile.fileName} draggable={false}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none' }} />
+                    ) : (
+                      <PdfCanvas url={previewUrl} page={pdfPage} onNumPages={setPdfNumPages} onError={() => setPdfError(true)} />
+                    )}
+                  </div>
                 </div>
-              ) : previewFile.contentType === 'application/pdf' ? (
-                // #view=FitH hints the browser's built-in PDF viewer to open fit-to-width
-                // instead of whatever zoom level it defaults/remembers — pinch-zoom inside it
-                // is native (the OS PDF renderer, independent of this page's own viewport meta).
-                <iframe src={`${previewUrl}#view=FitH`} title={previewFile.fileName} style={{ width: '100%', height: '100%', border: 'none' }} />
               ) : (
                 <div style={{ textAlign: 'center', padding: 24 }}>
                   <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginBottom: 16 }}>
