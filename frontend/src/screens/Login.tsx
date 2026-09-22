@@ -19,8 +19,7 @@ export function Login() {
   const [forgotBusy, setForgotBusy] = useState(false);
 
   async function submit() {
-    if (!email.trim()) { setError('נא להזין כתובת אימייל'); return; }
-    if (!password) { setError('נא להזין סיסמה'); return; }
+    if (!email.trim() || !password) { setError('נא למלא את השדות החסרים'); return; }
     setError(''); setBusy(true);
     try {
       await login(email.trim(), password);

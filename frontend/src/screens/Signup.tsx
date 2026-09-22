@@ -14,9 +14,7 @@ export function Signup() {
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (!name.trim()) { setError('נא להזין שם'); return; }
-    if (!email.trim()) { setError('נא להזין כתובת אימייל'); return; }
-    if (!password) { setError('נא להזין סיסמה'); return; }
+    if (!name.trim() || !email.trim() || !password) { setError('נא למלא את השדות החסרים'); return; }
     if (!agreedToTerms) { setError('צריך לאשר את תנאי השימוש כדי להמשיך'); return; }
     setError(''); setBusy(true);
     try {
