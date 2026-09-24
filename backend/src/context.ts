@@ -30,11 +30,19 @@ export function genInviteCode(): string {
   return `JPN-${code}`;
 }
 
+// titleKey + titleParams (rather than a pre-rendered string) is what lets each viewer see a
+// notification in their own UI language: the frontend looks titleKey up in its own dictionary at
+// read time instead of the server baking one fixed language into the stored text. Any nameHe/
+// nameEn pair in titleParams is resolved to a single display name client-side the same way the
+// rest of the app does (see LanguageContext's displayName). Kept optional alongside the legacy
+// `title` field so already-stored notifications (written before this existed) still render via
+// their frozen Hebrew text instead of breaking.
 export async function createNotification(params: {
   tripId: string;
   actorUserId: string;
   type: string;
-  title: string;
+  titleKey: string;
+  titleParams?: Record<string, string | number>;
   body?: string;
   targetScreen?: string;
   targetId?: string;
@@ -42,7 +50,8 @@ export async function createNotification(params: {
   const actorName = await getUserName(params.actorUserId);
   await adminDb.collection("trips").doc(params.tripId).collection("notifications").add({
     type: params.type,
-    title: params.title,
+    titleKey: params.titleKey,
+    titleParams: params.titleParams || {},
     body: params.body || null,
     actorUserId: params.actorUserId,
     actorName,

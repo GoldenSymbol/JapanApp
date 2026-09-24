@@ -141,7 +141,9 @@ documentsRouter.post("/documents/folders/:folderId/files", requireAuth, upload.s
   });
   await createNotification({
     tripId: trip.id, actorUserId: req.userId!, type: "new_document",
-    title: `${uploadedByName} העלה/תה קובץ חדש: ${file.originalname}`, targetScreen: "documents",
+    titleKey: "notif.newDocument",
+    titleParams: { uploader: uploadedByName || "", fileName: file.originalname },
+    targetScreen: "documents",
   });
   res.json({ ok: true, id: docId });
 });

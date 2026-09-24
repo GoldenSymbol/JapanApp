@@ -129,7 +129,8 @@ itineraryRouter.post("/destinations", requireAuth, async (req: AuthedRequest, re
     tripId: trip.id,
     actorUserId: req.userId!,
     type: "new_destination",
-    title: `יעד חדש נוסף למסלול: ${nameHe}`,
+    titleKey: "notif.newDestination",
+    titleParams: { nameHe, nameEn: nameEn || "" },
     targetScreen: "trip",
   });
   res.json({ destinations: await destinationsForTrip(trip.id) });
@@ -256,7 +257,8 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: A
     tripId: trip.id,
     actorUserId: req.userId!,
     type: "new_attraction",
-    title: `אטרקציה חדשה ב${dest.nameHe}: ${nameHe}`,
+    titleKey: "notif.newAttraction",
+    titleParams: { cityNameHe: dest.nameHe, cityNameEn: dest.nameEn || "", nameHe, nameEn: nameEn || "" },
     targetScreen: "city",
     targetId: id,
   });
@@ -303,7 +305,8 @@ itineraryRouter.patch("/attractions/:id", requireAuth, async (req: AuthedRequest
       tripId: trip.id,
       actorUserId: req.userId!,
       type: "reschedule",
-      title: `${a.nameHe} עברה ל${req.body.day ? "יום " + req.body.day : "ללא תאריך"}`,
+      titleKey: req.body.day ? "notif.rescheduleDay" : "notif.rescheduleNone",
+      titleParams: { nameHe: a.nameHe, nameEn: a.nameEn || "", day: req.body.day || "" },
       targetScreen: "today",
     });
   }

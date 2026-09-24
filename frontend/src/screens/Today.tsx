@@ -15,7 +15,7 @@ function dayLabel(iso: string) {
 export function Today() {
   const { destinations, loading: destLoading } = useTripData();
   const { dark, palette } = useTheme();
-  const { t, displayName } = useLanguage();
+  const { t, lang, displayName } = useLanguage();
   const navigate = useNavigate();
   const [date, setDate] = useState<string | null>(null);
   const [attractions, setAttractions] = useState<any[] | null>(null);
@@ -48,7 +48,7 @@ export function Today() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destinations]);
+  }, [destinations, lang]);
 
   const dest = date ? destinations.find((d) => d.startDate <= date && d.endDate >= date) : undefined;
 

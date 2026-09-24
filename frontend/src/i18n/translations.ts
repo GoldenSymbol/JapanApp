@@ -342,6 +342,16 @@ export const translations: Record<Lang, Record<string, string>> = {
     'notifications.daysAgo': 'לפני {{n}} ימים',
     'toast.viewInItinerary': 'הצג במסלול',
 
+    // notification titles — rendered from a stored key + params so each viewer sees their own
+    // language; nameHe/nameEn (and cityNameHe/cityNameEn) pairs in the params are resolved to a
+    // single name client-side, the same way destination/attraction names are everywhere else.
+    'notif.newExpense': 'הוצאה חדשה ב{{category}}: ₪{{amount}}',
+    'notif.newDocument': '{{uploader}} העלה/תה קובץ חדש: {{fileName}}',
+    'notif.newDestination': 'יעד חדש נוסף למסלול: {{name}}',
+    'notif.newAttraction': 'אטרקציה חדשה ב{{city}}: {{name}}',
+    'notif.rescheduleDay': '{{name}} עברה ליום {{day}}',
+    'notif.rescheduleNone': 'התאריך של {{name}} הוסר',
+
     // translate drawer (phrasebook chrome only — he/en/ja language names stay as-is, that's the
     // phrasebook's own 3-way selector, unrelated to the app's UI language)
     'translate.title': '訳 תרגום',
@@ -687,6 +697,15 @@ export const translations: Record<Lang, Record<string, string>> = {
     'notifications.hoursAgo': '{{n}} hr ago',
     'notifications.daysAgo': '{{n}} days ago',
     'toast.viewInItinerary': 'View in itinerary',
+
+    // notification titles — see the he block above for why these carry {{vars}} instead of being
+    // pre-rendered.
+    'notif.newExpense': 'New expense in {{category}}: ₪{{amount}}',
+    'notif.newDocument': '{{uploader}} uploaded a new file: {{fileName}}',
+    'notif.newDestination': 'New destination added to the itinerary: {{name}}',
+    'notif.newAttraction': 'New attraction in {{city}}: {{name}}',
+    'notif.rescheduleDay': '{{name}} moved to day {{day}}',
+    'notif.rescheduleNone': "{{name}}'s date was removed",
 
     // translate drawer
     'translate.title': '訳 Translate',

@@ -123,7 +123,8 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
       tripId: trip.id,
       actorUserId: req.userId!,
       type: "new_expense",
-      title: `הוצאה חדשה ב${cat.name}: ${Math.round(amount)}₪`,
+      titleKey: "notif.newExpense",
+      titleParams: { category: cat.name, amount: Math.round(amount) },
       targetScreen: "budget",
     });
   }

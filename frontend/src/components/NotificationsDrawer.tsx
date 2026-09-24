@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer } from './Drawer';
-import { useNotifications, type Notification } from '../state/NotificationsContext';
+import { useNotifications, notificationTitle, type Notification } from '../state/NotificationsContext';
 import { useLanguage } from '../state/LanguageContext';
 
 function timeAgo(iso: string, t: (key: string, vars?: Record<string, string | number>) => string) {
@@ -23,7 +23,7 @@ const DELETE_WIDTH = 72;
 function SwipeableNotification({ n, onOpen, onDelete }: {
   n: Notification; onOpen: () => void; onDelete: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
@@ -81,7 +81,7 @@ function SwipeableNotification({ n, onOpen, onDelete }: {
           {!n.read && <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--danger)' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ font: "500 14px/1.35 'Noto Sans Hebrew',sans-serif" }}>{n.title}</div>
+          <div style={{ font: "500 14px/1.35 'Noto Sans Hebrew',sans-serif" }}>{notificationTitle(n, lang, t)}</div>
           <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{timeAgo(n.createdAt, t)}</div>
         </div>
       </div>

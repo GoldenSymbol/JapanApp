@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useNotifications } from '../state/NotificationsContext';
+import { useNotifications, notificationTitle } from '../state/NotificationsContext';
 import { useLanguage } from '../state/LanguageContext';
 
 const SCREEN_PATH: Record<string, string> = {
@@ -9,7 +9,7 @@ const SCREEN_PATH: Record<string, string> = {
 
 export function Toast() {
   const { toast, dismissToast, markRead } = useNotifications();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
   return (
     <AnimatePresence>
@@ -24,7 +24,7 @@ export function Toast() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ font: "600 13.5px 'Noto Sans Hebrew',sans-serif" }}>{toast.title}</div>
+              <div style={{ font: "600 13.5px 'Noto Sans Hebrew',sans-serif" }}>{notificationTitle(toast, lang, t)}</div>
               {toast.actorName && <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{toast.actorName}</div>}
               <div style={{ display: 'flex', gap: 14, marginTop: 10 }}>
                 {toast.targetScreen && SCREEN_PATH[toast.targetScreen] && (
