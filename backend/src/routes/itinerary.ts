@@ -4,6 +4,7 @@ import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
 import { geocodePlace } from "../geocode.js";
+import { lookupJapanKanji } from "../japanPlaceNames.js";
 
 export const itineraryRouter = Router();
 
@@ -64,7 +65,10 @@ async function destinationsForTrip(tripId: string) {
     order: d.orderIndex,
     nameHe: d.nameHe,
     nameEn: d.nameEn,
-    nameJa: d.nameJa,
+    // Older destinations (created before nameJa existed) have it stored empty — fall back to the
+    // same known-place lookup the add-destination form uses, computed fresh on every read so
+    // there's no migration to run over existing trips.
+    nameJa: d.nameJa || lookupJapanKanji(d.nameEn) || lookupJapanKanji(d.nameHe),
     startDate: d.startDate,
     endDate: d.endDate,
     transportIn: d.transportIn,
