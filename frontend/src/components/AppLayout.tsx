@@ -3,12 +3,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { Toast } from './Toast';
+import { OfflineBanner } from './OfflineBanner';
 
 export function AppLayout() {
   const location = useLocation();
   return (
     <div className="app-shell">
       <TopBar />
+      <OfflineBanner />
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

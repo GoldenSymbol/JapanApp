@@ -3,7 +3,8 @@ import {
   createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase';
-import { api, ApiError } from '../api';
+import { api, ApiError, isServerUnreachable } from '../api';
+import { loadAuthSnapshot, saveAuthSnapshot } from './offlineCache';
 
 export interface User {
   id: string;
@@ -96,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setUser(data.user); setTrip(data.trip); setCurrentTermsVersion(data.currentTermsVersion);
+    if (auth.currentUser) {
+      saveAuthSnapshot({ uid: auth.currentUser.uid, user: data.user, trip: data.trip, currentTermsVersion: data.currentTermsVersion });
+    }
   }, []);
 
   useEffect(() => {
@@ -104,8 +108,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (explicitLoadInFlight.current) { setLoading(false); return; }
       try {
         await loadProfile();
-      } catch {
-        setUser(null); setTrip(null);
+      } catch (e) {
+        if (!isServerUnreachable(e)) {
+          setUser(null); setTrip(null);
+        } else {
+          // Server unreachable — Firebase itself still confirms this browser is signed in (it
+          // persists that locally), so that shouldn't look like a logout. Fall back to the last
+          // profile /auth/me returned successfully instead of bouncing to the login screen.
+          const cached = await loadAuthSnapshot(fbUser.uid);
+          if (cached) {
+            setUser(cached.user); setTrip(cached.trip); setCurrentTermsVersion(cached.currentTermsVersion);
+          } else {
+            setUser(null); setTrip(null);
+          }
+        }
       } finally {
         setLoading(false);
       }

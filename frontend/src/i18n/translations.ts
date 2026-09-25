@@ -360,6 +360,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'translate.prompt': 'הקלידו מילה או בחרו ביטוי שימושי למטה.',
     'translate.usefulPhrases': 'ביטויים שימושיים',
     'translate.toPrefix': 'ל',
+
+    // offline banner
+    'offline.banner': 'אין חיבור לרשת · מוצג המידע האחרון שנשמר',
   },
   en: {
     // common
@@ -714,5 +717,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'translate.prompt': 'Type a word or pick a useful phrase below.',
     'translate.usefulPhrases': 'Useful phrases',
     'translate.toPrefix': 'To ',
+
+    // offline banner
+    'offline.banner': 'No connection · showing the last saved data',
   },
 };

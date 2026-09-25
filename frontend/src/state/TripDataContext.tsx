@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api } from '../api';
+import { api, isServerUnreachable } from '../api';
 import { useAuth } from './AuthContext';
+import { loadTripSnapshot, saveTripSnapshot } from './offlineCache';
 
 export interface Destination {
   id: string;
@@ -43,6 +44,11 @@ interface TripDataState {
   destinations: Destination[];
   loading: boolean;
   refresh: () => Promise<void>;
+  // True once a refresh has actually failed for lack of network — everything currently in state
+  // is then the last snapshot successfully saved to IndexedDB, not necessarily current. Reading
+  // still works while this is true; writes (add/edit/delete actions) are not yet queued for
+  // later sync and will simply fail — that's the next phase of this feature, not this one.
+  offline: boolean;
   // Everything below is fetched once alongside destinations (same trip-session lifecycle) rather
   // than by each screen that needs it. Members, Settings, Budget and Documents each used to
   // independently fetch their own slice on every visit and block rendering until it resolved —
@@ -86,29 +92,57 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   const [documentFolders, setDocumentFolders] = useState<DocumentFolder[]>([]);
   const [attractionsByDestination, setAttractionsByDestination] = useState<Record<string, Attraction[]>>({});
   const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+  const tripId = trip?.id;
 
   const refreshTripMeta = useCallback(async () => {
     if (!trip) { setTripMeta(null); return; }
-    const data = await api('/trips/current');
-    setTripMeta(data.trip);
+    try {
+      const data = await api('/trips/current');
+      setTripMeta(data.trip);
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+    }
   }, [trip]);
   const refreshBudget = useCallback(async () => {
     if (!trip) { setBudget(null); return; }
-    setBudget(await api('/budget'));
+    try {
+      setBudget(await api('/budget'));
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+    }
   }, [trip]);
   const refreshPersonalBudget = useCallback(async () => {
     if (!trip) { setPersonalBudget(null); return; }
-    setPersonalBudget(await api('/budget/personal'));
+    try {
+      setPersonalBudget(await api('/budget/personal'));
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+    }
   }, [trip]);
   const refreshDocumentFolders = useCallback(async () => {
     if (!trip) { setDocumentFolders([]); return; }
-    const data = await api('/documents/folders');
-    setDocumentFolders(data.folders);
+    try {
+      const data = await api('/documents/folders');
+      setDocumentFolders(data.folders);
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+    }
   }, [trip]);
   const refreshAttractions = useCallback(async (destId: string) => {
-    const data = await api(`/destinations/${destId}/attractions`);
-    setAttractionsByDestination((m) => ({ ...m, [destId]: data.attractions }));
-  }, []);
+    try {
+      const data = await api(`/destinations/${destId}/attractions`);
+      setAttractionsByDestination((m) => ({ ...m, [destId]: data.attractions }));
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+      // Offline and nothing fetched — fall back to this destination's slice of the last saved
+      // snapshot, if there is one, rather than leaving the screen with no data at all.
+      if (!tripId) return;
+      const snapshot = await loadTripSnapshot(tripId);
+      const cached = snapshot?.attractionsByDestination[destId];
+      if (cached) setAttractionsByDestination((m) => ({ ...m, [destId]: cached }));
+    }
+  }, [tripId]);
   const ensureAttractions = useCallback(async (destId: string) => {
     if (attractionsByDestination[destId]) return;
     await refreshAttractions(destId);
@@ -122,27 +156,73 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     if (!trip) {
       setDestinations([]); setTripMeta(null); setBudget(null); setPersonalBudget(null); setDocumentFolders([]);
       setAttractionsByDestination({});
+      setOffline(false);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const [destData, tripData, budgetData, personalData, foldersData] = await Promise.all([
-      api('/destinations'), api('/trips/current'), api('/budget'), api('/budget/personal'), api('/documents/folders'),
-    ]);
-    setDestinations(destData.destinations);
-    setTripMeta(tripData.trip);
-    setBudget(budgetData);
-    setPersonalBudget(personalData);
-    setDocumentFolders(foldersData.folders);
-    setAttractionsByDestination({});
-    setLoading(false);
+    try {
+      const [destData, tripData, budgetData, personalData, foldersData] = await Promise.all([
+        api('/destinations'), api('/trips/current'), api('/budget'), api('/budget/personal'), api('/documents/folders'),
+      ]);
+      setDestinations(destData.destinations);
+      setTripMeta(tripData.trip);
+      setBudget(budgetData);
+      setPersonalBudget(personalData);
+      setDocumentFolders(foldersData.folders);
+      setAttractionsByDestination({});
+      setOffline(false);
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+      // No network — fall back to the last snapshot this trip saved successfully, if any, so
+      // the app shows the last-known trip instead of a blank screen. Attractions the user never
+      // visited this session (or ever, on this device) simply won't be there; ensureAttractions
+      // has its own fallback for that per destination.
+      const snapshot = await loadTripSnapshot(trip.id);
+      if (snapshot) {
+        setDestinations(snapshot.destinations);
+        setTripMeta(snapshot.tripMeta);
+        setBudget(snapshot.budget);
+        setPersonalBudget(snapshot.personalBudget);
+        setDocumentFolders(snapshot.documentFolders);
+        setAttractionsByDestination(snapshot.attractionsByDestination);
+      }
+      setOffline(true);
+    } finally {
+      setLoading(false);
+    }
   }, [trip]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Write-through: whenever this trip's data actually changes post-load, save a fresh snapshot
+  // so a later offline load has something recent to fall back to. Runs after every successful
+  // fetch and every local mutation (including the optimistic drag-reorder in City.tsx) — cheap,
+  // and simpler/more robust than threading an explicit save call through every call site that
+  // changes one of these.
+  useEffect(() => {
+    if (!tripId || loading) return;
+    saveTripSnapshot({ tripId, destinations, tripMeta, budget, personalBudget, documentFolders, attractionsByDestination });
+  }, [tripId, loading, destinations, tripMeta, budget, personalBudget, documentFolders, attractionsByDestination]);
+
+  // The 'offline' event fires the moment the OS reports no connectivity — flip the banner on
+  // right away rather than waiting for some future request to fail. 'online' is a hint, not a
+  // guarantee (captive portals etc. can lie), so it just triggers a real refresh(); if that
+  // still fails, the catch above puts offline back to true.
+  useEffect(() => {
+    function handleOffline() { setOffline(true); }
+    function handleOnline() { refresh(); }
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [refresh]);
+
   return (
     <Ctx.Provider value={{
-      destinations, loading, refresh,
+      destinations, loading, refresh, offline,
       tripMeta, refreshTripMeta,
       budget, refreshBudget,
       personalBudget, refreshPersonalBudget,

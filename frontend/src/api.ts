@@ -10,6 +10,20 @@ export class ApiError extends Error {
   }
 }
 
+// True for anything that means "couldn't actually reach our server and get a real answer" —
+// used to decide when it's safe to fall back to cached data instead of showing an error. A raw
+// fetch() rejection (offline, DNS down) never becomes an ApiError at all, so it's always true
+// here. A gateway/proxy in front of the backend being down (Firebase Hosting's rewrite when
+// Cloud Run is unreachable, or the Vite dev proxy when the local backend isn't running) still
+// reaches the browser as a real HTTP response, just a 5xx one with no useful body — that's
+// unavailability too, not a real application answer. A genuine 4xx (bad auth, not found,
+// validation) means the server DID answer, just "no" — falling back to stale cache there would
+// hide a real problem instead of surfacing it.
+export function isServerUnreachable(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return true;
+  return err.status >= 500;
+}
+
 export async function api<T = any>(path: string, options: RequestInit & { json?: any } = {}): Promise<T> {
   const { json, headers, ...rest } = options;
   const token = await auth.currentUser?.getIdToken();
