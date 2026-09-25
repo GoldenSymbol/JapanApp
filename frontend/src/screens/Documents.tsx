@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, apiUpload, apiDownload, ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
 import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon, EditIcon } from '../components/Icons';
 import { PdfCanvas } from '../components/PdfCanvas';
 import { useLanguage } from '../state/LanguageContext';
+import { useTripData } from '../state/TripDataContext';
 
-interface FolderEntry { id: string; name: string; colorKey: string; fileCount: number; }
 interface FileEntry { id: string; fileName: string; contentType: string; size: number; uploadedByName: string; uploadedAt: string; }
 
 function fmtDate(iso: string, lang: 'he' | 'en') {
@@ -16,8 +16,7 @@ function fmtDate(iso: string, lang: 'he' | 'en') {
 
 export function Documents() {
   const { t, lang } = useLanguage();
-  const [folders, setFolders] = useState<FolderEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { documentFolders: folders, refreshDocumentFolders: refreshFolders, loading } = useTripData();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -97,18 +96,10 @@ export function Documents() {
     setTimeout(() => setToast(''), 2200);
   }
 
-  async function refreshFolders() {
-    const data = await api('/documents/folders');
-    setFolders(data.folders);
-  }
   async function refreshFiles(folderId: string) {
     const data = await api(`/documents/folders/${folderId}/files`);
     setFilesByFolder((f) => ({ ...f, [folderId]: data.files }));
   }
-
-  useEffect(() => {
-    refreshFolders().finally(() => setLoading(false));
-  }, []);
 
   function toggleFolder(id: string) {
     if (editing) return;

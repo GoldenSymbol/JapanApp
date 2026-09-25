@@ -28,18 +28,29 @@ export interface TripMeta {
   pendingInvites: { email: string; created_at: string | null }[];
 }
 
+export interface BudgetCategory { id: string; name: string; planned: number; spent: number; note: string | null; percent: number; }
+export interface BudgetSnapshot { total: number; paid: number; categories: BudgetCategory[]; }
+
+export interface DocumentFolder { id: string; name: string; colorKey: string; fileCount: number; }
+
 interface TripDataState {
   destinations: Destination[];
   loading: boolean;
   refresh: () => Promise<void>;
-  // Fetched once alongside destinations (same trip-session lifecycle) rather than by each screen
-  // that needs it — Members and Settings both used to independently re-fetch this same data on
-  // every visit, which was the source of a visible delay/flash when opening Members: a blank
-  // screen every time, waiting on a network round-trip whose result rarely differs from what was
-  // already on screen a moment earlier. Screens now just read it here; refreshTripMeta() is there
-  // for after an action that actually changes it (invite code rotated, member removed, etc).
+  // Everything below is fetched once alongside destinations (same trip-session lifecycle) rather
+  // than by each screen that needs it. Members, Settings, Budget and Documents each used to
+  // independently fetch their own slice on every visit and block rendering until it resolved —
+  // the source of a visible delay/flash every single time, waiting on a network round-trip whose
+  // result rarely differs from what was already on screen a moment earlier. Screens now just read
+  // their slice here; each has its own refresh*() for after an action that actually changes it.
   tripMeta: TripMeta | null;
   refreshTripMeta: () => Promise<void>;
+  budget: BudgetSnapshot | null;
+  refreshBudget: () => Promise<void>;
+  personalBudget: BudgetSnapshot | null;
+  refreshPersonalBudget: () => Promise<void>;
+  documentFolders: DocumentFolder[];
+  refreshDocumentFolders: () => Promise<void>;
 }
 
 const Ctx = createContext<TripDataState | null>(null);
@@ -48,6 +59,9 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   const { trip } = useAuth();
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [tripMeta, setTripMeta] = useState<TripMeta | null>(null);
+  const [budget, setBudget] = useState<BudgetSnapshot | null>(null);
+  const [personalBudget, setPersonalBudget] = useState<BudgetSnapshot | null>(null);
+  const [documentFolders, setDocumentFolders] = useState<DocumentFolder[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refreshTripMeta = useCallback(async () => {
@@ -55,19 +69,51 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     const data = await api('/trips/current');
     setTripMeta(data.trip);
   }, [trip]);
+  const refreshBudget = useCallback(async () => {
+    if (!trip) { setBudget(null); return; }
+    setBudget(await api('/budget'));
+  }, [trip]);
+  const refreshPersonalBudget = useCallback(async () => {
+    if (!trip) { setPersonalBudget(null); return; }
+    setPersonalBudget(await api('/budget/personal'));
+  }, [trip]);
+  const refreshDocumentFolders = useCallback(async () => {
+    if (!trip) { setDocumentFolders([]); return; }
+    const data = await api('/documents/folders');
+    setDocumentFolders(data.folders);
+  }, [trip]);
 
   const refresh = useCallback(async () => {
-    if (!trip) { setDestinations([]); setTripMeta(null); setLoading(false); return; }
+    if (!trip) {
+      setDestinations([]); setTripMeta(null); setBudget(null); setPersonalBudget(null); setDocumentFolders([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const [destData, tripData] = await Promise.all([api('/destinations'), api('/trips/current')]);
+    const [destData, tripData, budgetData, personalData, foldersData] = await Promise.all([
+      api('/destinations'), api('/trips/current'), api('/budget'), api('/budget/personal'), api('/documents/folders'),
+    ]);
     setDestinations(destData.destinations);
     setTripMeta(tripData.trip);
+    setBudget(budgetData);
+    setPersonalBudget(personalData);
+    setDocumentFolders(foldersData.folders);
     setLoading(false);
   }, [trip]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return <Ctx.Provider value={{ destinations, loading, refresh, tripMeta, refreshTripMeta }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{
+      destinations, loading, refresh,
+      tripMeta, refreshTripMeta,
+      budget, refreshBudget,
+      personalBudget, refreshPersonalBudget,
+      documentFolders, refreshDocumentFolders,
+    }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useTripData() {

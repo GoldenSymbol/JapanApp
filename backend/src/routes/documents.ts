@@ -35,26 +35,30 @@ async function fetchFolders(tripId: string) {
 
 // A brand-new trip has no folders yet — seed the four requested defaults once, the first time
 // anyone asks for the folder list. Editable/deletable afterward like any other folder; this is
-// just a starting point, not a fixed set of categories.
-async function ensureDefaultFolders(tripId: string) {
-  const existing = await tripRef(tripId).collection("documentFolders").limit(1).get();
-  if (!existing.empty) return;
+// just a starting point, not a fixed set of categories. Takes the already-fetched folder list
+// instead of re-querying for one: GET /documents/folders used to run its own separate "does this
+// trip have any folders yet" existence check ahead of the real fetch below, on every single load
+// forever — not just the one time it can ever actually matter — adding a full extra sequential
+// round trip to the common case where folders (obviously) already exist.
+async function ensureDefaultFolders(tripId: string, existingFolders: any[]) {
+  if (existingFolders.length > 0) return existingFolders;
   const batch = adminDb.batch();
   DEFAULT_FOLDERS.forEach((name, i) => {
     const ref = tripRef(tripId).collection("documentFolders").doc();
     batch.set(ref, { name, colorKey: FOLDER_COLORS[i % FOLDER_COLORS.length], orderIndex: i, createdAt: new Date() });
   });
   await batch.commit();
+  return fetchFolders(tripId);
 }
 
 documentsRouter.get("/documents/folders", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
-  await ensureDefaultFolders(trip.id);
-  const [folders, docsSnap] = await Promise.all([
+  const [fetchedFolders, docsSnap] = await Promise.all([
     fetchFolders(trip.id),
     tripRef(trip.id).collection("documents").get(),
   ]);
+  const folders = await ensureDefaultFolders(trip.id, fetchedFolders);
   const countByFolder = new Map<string, number>();
   for (const doc of docsSnap.docs) {
     const folderId = doc.data().folderId;

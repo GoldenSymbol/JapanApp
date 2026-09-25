@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
+import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
 const CURRENCY_SYMBOLS: Record<string, string> = { ILS: '₪', JPY: '¥', USD: '$', EUR: '€' };
@@ -143,29 +144,31 @@ function BudgetPieView({ data }: { data: any }) {
 }
 
 // Shared UI for both the group budget (basePath="/budget") and each member's own private
-// personal budget (basePath="/budget/personal") — same shape of data, same interactions.
-function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart }: { basePath: string; title: string; subtitle?: string; newCategoryLabel: string; allowChart?: boolean }) {
+// personal budget (basePath="/budget/personal") — same shape of data, same interactions. Reads
+// its snapshot from TripDataContext (prefetched once alongside the rest of the trip's data)
+// instead of fetching its own on mount, and calls the matching refresh*() there after any
+// mutation instead of refetching locally — see that context for why.
+function BudgetSection({ basePath, data, refreshData, title, subtitle, newCategoryLabel, allowChart }: {
+  basePath: string; data: BudgetSnapshot | null; refreshData: () => Promise<void>;
+  title: string; subtitle?: string; newCategoryLabel: string; allowChart?: boolean;
+}) {
   const { t } = useLanguage();
-  const [data, setData] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
   const [view, setView] = useState<'list' | 'chart'>('chart');
   const [totalDraft, setTotalDraft] = useState('');
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
 
-  async function load() { setData(await api(basePath)); }
-  useEffect(() => { load(); }, [basePath]);
-
-  async function setTotal(v: number) { await api(basePath, { method: 'PATCH', json: { total: v } }); await load(); }
-  async function renameCat(id: string, name: string) { await api(`${basePath}/categories/${id}`, { method: 'PATCH', json: { name } }); await load(); }
-  async function deleteCat(id: string) { await api(`${basePath}/categories/${id}`, { method: 'DELETE' }); await load(); }
-  async function addCategory() { await api(`${basePath}/categories`, { method: 'POST', json: { name: newCategoryLabel, planned: 0 } }); await load(); }
+  async function setTotal(v: number) { await api(basePath, { method: 'PATCH', json: { total: v } }); await refreshData(); }
+  async function renameCat(id: string, name: string) { await api(`${basePath}/categories/${id}`, { method: 'PATCH', json: { name } }); await refreshData(); }
+  async function deleteCat(id: string) { await api(`${basePath}/categories/${id}`, { method: 'DELETE' }); await refreshData(); }
+  async function addCategory() { await api(`${basePath}/categories`, { method: 'POST', json: { name: newCategoryLabel, planned: 0 } }); await refreshData(); }
   async function applyTx(id: string, direction: 'add' | 'subtract') {
     const amount = parseFloat(addVals[id] || '0');
     if (!amount) return;
     await api(`${basePath}/categories/${id}/transactions`, { method: 'POST', json: { amount, direction } });
     setAddVals((v) => ({ ...v, [id]: '' }));
-    await load();
+    await refreshData();
   }
 
   if (!data) return null;
@@ -297,6 +300,7 @@ function BudgetSection({ basePath, title, subtitle, newCategoryLabel, allowChart
 
 export function Budget() {
   const { t } = useLanguage();
+  const { budget, refreshBudget, personalBudget, refreshPersonalBudget } = useTripData();
   const [mode, setMode] = useState<'general' | 'personal'>('general');
 
   return (
@@ -316,9 +320,9 @@ export function Budget() {
       </div>
 
       {mode === 'general' ? (
-        <BudgetSection basePath="/budget" title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
+        <BudgetSection basePath="/budget" data={budget} refreshData={refreshBudget} title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
       ) : (
-        <BudgetSection basePath="/budget/personal" title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
+        <BudgetSection basePath="/budget/personal" data={personalBudget} refreshData={refreshPersonalBudget} title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
       )}
 
       <Converter />
