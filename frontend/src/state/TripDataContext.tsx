@@ -21,10 +21,25 @@ export interface Destination {
   groupId: string;
 }
 
+export interface TripMember { id: string; name: string; email: string; avatarColor: string; role: string; }
+export interface TripMeta {
+  id: string; name: string; code: string; ownerId: string; budgetTotal: number;
+  members: TripMember[];
+  pendingInvites: { email: string; created_at: string | null }[];
+}
+
 interface TripDataState {
   destinations: Destination[];
   loading: boolean;
   refresh: () => Promise<void>;
+  // Fetched once alongside destinations (same trip-session lifecycle) rather than by each screen
+  // that needs it — Members and Settings both used to independently re-fetch this same data on
+  // every visit, which was the source of a visible delay/flash when opening Members: a blank
+  // screen every time, waiting on a network round-trip whose result rarely differs from what was
+  // already on screen a moment earlier. Screens now just read it here; refreshTripMeta() is there
+  // for after an action that actually changes it (invite code rotated, member removed, etc).
+  tripMeta: TripMeta | null;
+  refreshTripMeta: () => Promise<void>;
 }
 
 const Ctx = createContext<TripDataState | null>(null);
@@ -32,19 +47,27 @@ const Ctx = createContext<TripDataState | null>(null);
 export function TripDataProvider({ children }: { children: ReactNode }) {
   const { trip } = useAuth();
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [tripMeta, setTripMeta] = useState<TripMeta | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshTripMeta = useCallback(async () => {
+    if (!trip) { setTripMeta(null); return; }
+    const data = await api('/trips/current');
+    setTripMeta(data.trip);
+  }, [trip]);
+
   const refresh = useCallback(async () => {
-    if (!trip) { setDestinations([]); setLoading(false); return; }
+    if (!trip) { setDestinations([]); setTripMeta(null); setLoading(false); return; }
     setLoading(true);
-    const data = await api('/destinations');
-    setDestinations(data.destinations);
+    const [destData, tripData] = await Promise.all([api('/destinations'), api('/trips/current')]);
+    setDestinations(destData.destinations);
+    setTripMeta(tripData.trip);
     setLoading(false);
   }, [trip]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return <Ctx.Provider value={{ destinations, loading, refresh }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ destinations, loading, refresh, tripMeta, refreshTripMeta }}>{children}</Ctx.Provider>;
 }
 
 export function useTripData() {

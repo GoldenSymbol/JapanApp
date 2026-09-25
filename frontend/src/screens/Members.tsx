@@ -1,38 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../state/AuthContext';
 import { useLanguage } from '../state/LanguageContext';
+import { useTripData } from '../state/TripDataContext';
 
 export function Members() {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
+  const { tripMeta: trip, refreshTripMeta } = useTripData();
   const navigate = useNavigate();
-  const [trip, setTrip] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
 
-  async function load() { setTrip((await api('/trips/current')).trip); }
-  useEffect(() => { load(); }, []);
-
   async function copyCode() {
-    try { await navigator.clipboard.writeText(trip.code); } catch { /* clipboard may be unavailable */ }
+    // Only reachable once the component has actually rendered its content below, which is
+    // gated on trip being non-null.
+    try { await navigator.clipboard.writeText(trip!.code); } catch { /* clipboard may be unavailable */ }
     setCopied(true); setTimeout(() => setCopied(false), 1600);
   }
   async function shareCode() {
-    const text = t('members.shareText', { code: trip.code });
+    const text = t('members.shareText', { code: trip!.code });
     if (navigator.share) { try { await navigator.share({ text }); } catch { /* cancelled */ } }
     else { try { await navigator.clipboard.writeText(text); } catch { /* ignore */ } }
     setShared(true); setTimeout(() => setShared(false), 1600);
   }
-  async function rotateCode() { await api('/trips/rotate-code', { method: 'POST' }); await load(); }
-  async function removeMember(id: string) { await api(`/trips/members/${id}`, { method: 'DELETE' }); await load(); }
+  async function rotateCode() { await api('/trips/rotate-code', { method: 'POST' }); await refreshTripMeta(); }
+  async function removeMember(id: string) { await api(`/trips/members/${id}`, { method: 'DELETE' }); await refreshTripMeta(); }
   async function sendInvite() {
     if (!inviteEmail.includes('@')) return;
     await api('/trips/invite', { method: 'POST', json: { email: inviteEmail } });
     setInviteEmail('');
-    await load();
+    await refreshTripMeta();
   }
 
   if (!trip || !user) return null;

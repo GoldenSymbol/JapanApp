@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useAuth } from '../state/AuthContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
+import { useTripData } from '../state/TripDataContext';
 import type { Lang } from '../i18n/translations';
 
 const AVATAR_COLORS = ['#D9564B', '#7FB069', '#6FA8DC', '#D9A441', '#C77DBB'];
@@ -32,14 +33,11 @@ export function Settings() {
   const { user, updateMe, logout } = useAuth();
   const { dark, palette, setDark, setPalette } = useTheme();
   const { lang, setLang, t } = useLanguage();
+  const { tripMeta } = useTripData();
   const navigate = useNavigate();
-  const [memberCount, setMemberCount] = useState(1);
+  const memberCount = tripMeta?.members.length || 1;
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [photoAsked, setPhotoAsked] = useState(false);
-
-  useEffect(() => {
-    api('/trips/current').then((d) => setMemberCount(d.trip?.members?.length || 1));
-  }, []);
 
   if (!user) return null;
 

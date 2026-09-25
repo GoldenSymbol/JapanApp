@@ -83,7 +83,13 @@ tripsRouter.post("/join", requireAuth, async (req: AuthedRequest, res) => {
 tripsRouter.get("/current", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await getMyTrip(req.userId!);
   if (!trip) return res.json({ trip: null });
-  const invitesSnap = await adminDb.collection("trips").doc(trip.id).collection("invites").where("status", "==", "pending").get();
+  // Independent of each other (and of memberList's own per-member reads) — running them together
+  // instead of one after another cuts this endpoint's Firestore round-trips from three in series
+  // down to two.
+  const [invitesSnap, members] = await Promise.all([
+    adminDb.collection("trips").doc(trip.id).collection("invites").where("status", "==", "pending").get(),
+    memberList(trip.id),
+  ]);
   res.json({
     trip: {
       id: trip.id,
@@ -91,7 +97,7 @@ tripsRouter.get("/current", requireAuth, async (req: AuthedRequest, res) => {
       code: trip.code,
       ownerId: trip.owner_id,
       budgetTotal: trip.budget_total,
-      members: await memberList(trip.id),
+      members,
       pendingInvites: invitesSnap.docs.map((doc) => ({ email: doc.data().email, created_at: doc.data().createdAt?.toDate?.().toISOString() ?? null })),
     },
   });
