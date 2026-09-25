@@ -162,11 +162,11 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   cityId: string | null; setCityId: (id: string) => void; dark: boolean;
   placeAttractionId: string | null; onDonePlacing: () => void;
 }) {
-  const { destinations } = useTripData();
+  const { destinations, attractionsByDestination, ensureAttractions, refreshAttractions } = useTripData();
   const { t, displayName } = useLanguage();
-  const [spots, setSpots] = useState<any[]>([]);
   const [route, setRoute] = useState<string[]>([]);
   const city = destinations.find((d) => d.id === cityId);
+  const spots = attractionsByDestination[cityId || ''] || [];
   // A place visited more than once (e.g. Tokyo, then Tokyo again at the end) shares a groupId —
   // show it once in the city switcher instead of once per visit, since they're the same place.
   const uniqueCities = useMemo(() => {
@@ -178,28 +178,23 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
     });
   }, [destinations]);
 
-  async function refreshSpots() {
-    if (!cityId) return;
-    const d = await api(`/destinations/${cityId}/attractions`);
-    setSpots(d.attractions);
-  }
-
+  // Same shared per-destination cache City and Today read — see TripDataContext for why.
   useEffect(() => {
     if (!cityId) return;
     setRoute([]);
-    refreshSpots();
-  }, [cityId]);
+    ensureAttractions(cityId);
+  }, [cityId, ensureAttractions]);
 
   const placingSpot = spots.find((s) => s.id === placeAttractionId);
   async function placeAt(lat: number, lng: number) {
-    if (!placeAttractionId) return;
+    if (!placeAttractionId || !cityId) return;
     await api(`/attractions/${placeAttractionId}`, { method: 'PATCH', json: { lat, lng } });
-    await refreshSpots();
+    await refreshAttractions(cityId);
     onDonePlacing();
   }
 
   const points = useMemo(() => spots.filter((s) => s.lat && s.lng).map((s) => [s.lat, s.lng] as [number, number]), [spots]);
-  const routeLine = route.map((id) => spots.find((s) => s.id === id)).filter((s) => s?.lat && s?.lng).map((s) => [s.lat, s.lng] as [number, number]);
+  const routeLine = route.map((id) => spots.find((s) => s.id === id)).filter((s): s is typeof spots[number] & { lat: number; lng: number } => !!s?.lat && !!s?.lng).map((s) => [s.lat, s.lng] as [number, number]);
 
   // The road-following version of routeLine, fetched from OSRM. Debounced so rapid taps while
   // building the route don't fire a request per tap; falls back to the straight line on failure.
@@ -254,7 +249,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
             <FitBounds points={points.length ? points : [[city.lat, city.lng]]} />
             {placingSpot && <MapClickHandler onClick={placeAt} />}
             {routeLine.length >= 2 && <Polyline positions={drivingRoute || routeLine} pathOptions={{ color: '#D9564B', weight: 3, opacity: 0.9 }} />}
-            {spots.filter((s) => s.lat && s.lng).map((s) => {
+            {spots.filter((s): s is typeof spots[number] & { lat: number; lng: number } => !!s.lat && !!s.lng).map((s) => {
               const orderIdx = route.indexOf(s.id);
               const inRoute = orderIdx >= 0;
               const tagColor = TAGS[s.tag]?.color || '#6FA8DC';

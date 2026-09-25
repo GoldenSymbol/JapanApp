@@ -13,15 +13,16 @@ function dayLabel(iso: string) {
 }
 
 export function Today() {
-  const { destinations, loading: destLoading } = useTripData();
+  const {
+    destinations, loading: destLoading,
+    attractionsByDestination, ensureAttractions, refreshAttractions,
+  } = useTripData();
   const { dark, palette } = useTheme();
   const { t, lang, displayName } = useLanguage();
   const navigate = useNavigate();
   const [date, setDate] = useState<string | null>(null);
-  const [attractions, setAttractions] = useState<any[] | null>(null);
   const [moving, setMoving] = useState<any>(null);
   const railRef = useRef<HTMLDivElement>(null);
-  const latestReq = useRef(0);
   const initialized = useRef(false);
 
   function countdown(dateIso: string) {
@@ -61,19 +62,15 @@ export function Today() {
     setDate(active ? todayIso : destinations[0]?.startDate || todayIso);
   }, [destLoading, destinations]);
 
-  // Fetch attractions only when the active destination actually changes — switching between
-  // days within the same city re-filters in memory below, with no extra request at all.
-  async function refreshAttractions(destId: string) {
-    const reqId = ++latestReq.current;
-    const res = await api(`/destinations/${destId}/attractions`);
-    if (reqId !== latestReq.current) return;
-    setAttractions(res.attractions);
-  }
+  // Attractions for the active destination come from the shared per-destination cache in
+  // TripDataContext — ensureAttractions() only does a real fetch the first time any screen (this
+  // one, City, or the map's city view) asks for this particular destination in the session;
+  // switching between days within the same city needs no request at all either way, since that's
+  // just re-filtering the same array in memory below.
+  const attractions = dest ? attractionsByDestination[dest.id] || [] : [];
   useEffect(() => {
-    if (dest) refreshAttractions(dest.id);
-    else setAttractions([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dest?.id]);
+    if (dest) ensureAttractions(dest.id);
+  }, [dest?.id, ensureAttractions]);
 
   useEffect(() => {
     if (!railRef.current || !date) return;
@@ -94,7 +91,7 @@ export function Today() {
     if (dest) await refreshAttractions(dest.id);
   }
 
-  if (!date || !attractions) return null;
+  if (!date) return null;
   const scheduled = [...attractions.filter((a) => a.day === date)].sort((a, b) => (a.hour || '99:99').localeCompare(b.hour || '99:99'));
   const unscheduled = attractions.filter((a) => !a.day);
   const cityDest = dest;

@@ -33,6 +33,12 @@ export interface BudgetSnapshot { total: number; paid: number; categories: Budge
 
 export interface DocumentFolder { id: string; name: string; colorKey: string; fileCount: number; }
 
+export interface Attraction {
+  id: string; nameHe: string; nameEn: string; tag: string; duration: string | null;
+  day: string | null; hour: string | null; note: string | null;
+  lat: number | null; lng: number | null; myStatus: string; othersStatus: string[];
+}
+
 interface TripDataState {
   destinations: Destination[];
   loading: boolean;
@@ -51,6 +57,22 @@ interface TripDataState {
   refreshPersonalBudget: () => Promise<void>;
   documentFolders: DocumentFolder[];
   refreshDocumentFolders: () => Promise<void>;
+  // Attractions are per-destination rather than one trip-wide singleton, and a trip can have many
+  // destinations — eagerly fetching every destination's attractions at app load (the way the
+  // singletons above are handled) would trade one delay for a worse one. Instead this is a lazy,
+  // shared cache keyed by destination id: City, Today and the map's city view each used to fetch
+  // "the attractions for the currently-active destination" independently, so switching between
+  // them re-fetched (and re-blocked on) the very same data every time. ensureAttractions() only
+  // fetches a destination's attractions the first time any screen asks for them in this session;
+  // every screen after that reads the same cached array instantly. refreshAttractions() forces a
+  // refetch after a mutation (add/remove/toggle/reschedule/...), and every screen sees the update
+  // immediately since they all read the same cache. setAttractionsLocal() exists only for City's
+  // drag-to-reorder, which needs to move items around optimistically while dragging without
+  // waiting on a round trip.
+  attractionsByDestination: Record<string, Attraction[]>;
+  ensureAttractions: (destId: string) => Promise<void>;
+  refreshAttractions: (destId: string) => Promise<void>;
+  setAttractionsLocal: (destId: string, spots: Attraction[]) => void;
 }
 
 const Ctx = createContext<TripDataState | null>(null);
@@ -62,6 +84,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   const [budget, setBudget] = useState<BudgetSnapshot | null>(null);
   const [personalBudget, setPersonalBudget] = useState<BudgetSnapshot | null>(null);
   const [documentFolders, setDocumentFolders] = useState<DocumentFolder[]>([]);
+  const [attractionsByDestination, setAttractionsByDestination] = useState<Record<string, Attraction[]>>({});
   const [loading, setLoading] = useState(true);
 
   const refreshTripMeta = useCallback(async () => {
@@ -82,10 +105,23 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     const data = await api('/documents/folders');
     setDocumentFolders(data.folders);
   }, [trip]);
+  const refreshAttractions = useCallback(async (destId: string) => {
+    const data = await api(`/destinations/${destId}/attractions`);
+    setAttractionsByDestination((m) => ({ ...m, [destId]: data.attractions }));
+  }, []);
+  const ensureAttractions = useCallback(async (destId: string) => {
+    if (attractionsByDestination[destId]) return;
+    await refreshAttractions(destId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attractionsByDestination, refreshAttractions]);
+  const setAttractionsLocal = useCallback((destId: string, spots: Attraction[]) => {
+    setAttractionsByDestination((m) => ({ ...m, [destId]: spots }));
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!trip) {
       setDestinations([]); setTripMeta(null); setBudget(null); setPersonalBudget(null); setDocumentFolders([]);
+      setAttractionsByDestination({});
       setLoading(false);
       return;
     }
@@ -98,6 +134,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     setBudget(budgetData);
     setPersonalBudget(personalData);
     setDocumentFolders(foldersData.folders);
+    setAttractionsByDestination({});
     setLoading(false);
   }, [trip]);
 
@@ -110,6 +147,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
       budget, refreshBudget,
       personalBudget, refreshPersonalBudget,
       documentFolders, refreshDocumentFolders,
+      attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
     }}>
       {children}
     </Ctx.Provider>

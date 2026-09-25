@@ -52,21 +52,19 @@ function navigationUrl(s: any, cityNameEn?: string) {
 export function City() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { destinations, refresh: refreshTripData } = useTripData();
+  const {
+    destinations, refresh: refreshTripData,
+    attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
+  } = useTripData();
   const { dark, palette } = useTheme();
   const { t, displayName } = useLanguage();
   const city = destinations.find((d) => d.id === id);
-  const [spots, setSpots] = useState<any[]>([]);
+  const spots = attractionsByDestination[id || ''] || [];
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
   const [showForm, setShowForm] = useState(false);
 
-  async function loadSpots() {
-    if (!id) return;
-    const data = await api(`/destinations/${id}/attractions`);
-    setSpots(data.attractions);
-  }
-  useEffect(() => { loadSpots(); }, [id]);
+  useEffect(() => { if (id) ensureAttractions(id); }, [id, ensureAttractions]);
 
   // A place visited more than once on the trip (e.g. Tokyo, then Tokyo again at the end) shares
   // a groupId across those destination entries — so the day-picker offers every day across all
@@ -84,32 +82,38 @@ export function City() {
     await api(`/destinations/${id}/attractions`, { method: 'POST', json: { ...form, day: form.day || null, hour: form.hour || null } });
     setForm({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
     setShowForm(false);
-    await Promise.all([loadSpots(), refreshTripData()]);
+    await Promise.all([refreshAttractions(id), refreshTripData()]);
   }
   async function toggleMark(spot: any) {
+    if (!id) return;
     const next = spot.myStatus === 'none' ? 'done' : spot.myStatus === 'done' ? 'skipped' : 'none';
     await api(`/attractions/${spot.id}/mark`, { method: 'POST', json: { status: next } });
-    await loadSpots();
+    await refreshAttractions(id);
   }
   async function removeSpot(spotId: string) {
+    if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'DELETE' });
-    await Promise.all([loadSpots(), refreshTripData()]);
+    await Promise.all([refreshAttractions(id), refreshTripData()]);
   }
   async function setSpotDay(spotId: string, day: string) {
+    if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { day: day || null } });
-    await loadSpots();
+    await refreshAttractions(id);
   }
   async function setSpotHour(spotId: string, hour: string) {
+    if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { hour: hour || null } });
-    await loadSpots();
+    await refreshAttractions(id);
   }
   async function setSpotName(spotId: string, patch: { nameHe?: string; nameEn?: string }) {
+    if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: patch });
-    await loadSpots();
+    await refreshAttractions(id);
   }
   async function setSpotTag(spotId: string, tag: string) {
+    if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { tag } });
-    await loadSpots();
+    await refreshAttractions(id);
   }
   function placeOnMap(spotId: string) {
     navigate('/map', { state: { cityId: id, placeAttractionId: spotId } });
@@ -191,7 +195,7 @@ export function City() {
           </div>
         )}
 
-        <Reorder.Group as="div" axis="y" values={spots} onReorder={setSpots} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        <Reorder.Group as="div" axis="y" values={spots} onReorder={(v) => id && setAttractionsLocal(id, v)} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           <AnimatePresence initial={false}>
             {spots.map((s) => (
               <AttractionRow
