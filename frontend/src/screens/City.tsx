@@ -183,7 +183,7 @@ export function City() {
                       {dayLabel(d)}
                     </div>
                   ))}
-                  <input className="field" style={{ width: 70, flex: 'none', padding: '5px 10px', textAlign: 'center' }} placeholder={t('city.hourPlaceholder')}
+                  <input className="field" type="time" style={{ width: 92, flex: 'none', padding: '5px 8px', textAlign: 'center' }}
                     value={form.hour} onChange={(e) => setForm({ ...form, hour: e.target.value })} />
                 </div>
                 <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
@@ -305,7 +305,7 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
             {days.map((d) => (
               <div key={d} onClick={() => onSetDay(d)} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${s.day === d ? 'var(--accent)' : 'var(--border)'}`, color: s.day === d ? 'var(--accent)' : 'var(--text-dim)' }}>{dayLabel(d)}</div>
             ))}
-            <input className="field" style={{ width: 66, flex: 'none', padding: '5px 10px', textAlign: 'center' }} placeholder={t('city.hourPlaceholder')} defaultValue={s.hour || ''} onBlur={(e) => onSetHour(e.target.value)} />
+            <input className="field" type="time" style={{ width: 92, flex: 'none', padding: '5px 8px', textAlign: 'center' }} value={s.hour || ''} onChange={(e) => onSetHour(e.target.value)} />
           </div>
         )}
       </div>
