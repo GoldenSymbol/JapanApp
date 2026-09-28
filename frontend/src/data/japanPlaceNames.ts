@@ -25,6 +25,7 @@ const JAPAN_PLACE_KANJI: Record<string, string> = {
   'nagoya': '名古屋', 'נגויה': '名古屋',
   'kobe': '神戸', 'קובה': '神戸',
   'nara': '奈良', 'נארה': '奈良',
+  'narita': '成田', 'נאריטה': '成田',
   'nikko': '日光', 'ניקו': '日光',
   'hakone': '箱根', 'האקונה': '箱根',
   'fukuoka': '福岡', 'פוקואוקה': '福岡',
