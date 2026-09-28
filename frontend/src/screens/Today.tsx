@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
 import { TAGS, tagLabel } from './City';
 import { Drawer } from '../components/Drawer';
+import { DragHandleIcon } from '../components/Icons';
 
 function dayLabel(iso: string) {
   const [, m, d] = iso.split('-');
@@ -15,7 +17,7 @@ function dayLabel(iso: string) {
 export function Today() {
   const {
     destinations, loading: destLoading,
-    attractionsByDestination, ensureAttractions, refreshAttractions,
+    attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
   } = useTripData();
   const { dark, palette } = useTheme();
   const { t, lang, displayName } = useLanguage();
@@ -91,12 +93,38 @@ export function Today() {
     if (dest) await refreshAttractions(dest.id);
   }
 
+  // Attractions with an hour are sorted by it and fixed in place — that's the user's own
+  // explicit ordering, dragging shouldn't fight it. Attractions with no hour have no ordering
+  // signal at all otherwise, so they're a separate, drag-reorderable group instead: dragging
+  // splices their new relative order back into the destination's full attraction list (same
+  // orderIndex field and reorder endpoint City.tsx's drag already uses) so nothing about the
+  // timed items or other days is touched.
+  function onReorderUntimed(newOrder: any[]) {
+    if (!dest) return;
+    const idsInNewOrder = new Set(newOrder.map((a) => a.id));
+    const full = attractionsByDestination[dest.id] || [];
+    let cursor = 0;
+    const result = full.map((a) => (idsInNewOrder.has(a.id) ? newOrder[cursor++] : a));
+    setAttractionsLocal(dest.id, result);
+  }
+  async function persistUntimedOrder() {
+    if (!dest) return;
+    const full = attractionsByDestination[dest.id] || [];
+    await api(`/destinations/${dest.id}/attractions/reorder`, { method: 'POST', json: { orderedIds: full.map((a: any) => a.id) } });
+  }
+
   if (!date) return null;
-  const scheduled = [...attractions.filter((a) => a.day === date)].sort((a, b) => (a.hour || '99:99').localeCompare(b.hour || '99:99'));
+  const dayAttractions = attractions.filter((a) => a.day === date);
+  const timed = [...dayAttractions.filter((a) => a.hour)].sort((a, b) => (a.hour as string).localeCompare(b.hour as string));
+  const untimed = dayAttractions.filter((a) => !a.hour);
+  const scheduled = [...timed, ...untimed];
   const unscheduled = attractions.filter((a) => !a.day);
   const cityDest = dest;
   const first = scheduled[0];
   const rest = scheduled.slice(1);
+  const untimedIds = new Set(untimed.map((a) => a.id));
+  const restTimed = rest.filter((a) => !untimedIds.has(a.id));
+  const restUntimed = rest.filter((a) => untimedIds.has(a.id));
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '6px 0 calc(102px + env(safe-area-inset-bottom))' }}>
@@ -138,9 +166,9 @@ export function Today() {
           </div>
 
           <div className="section-label" style={{ padding: '24px 0 6px' }}>{rest.length > 0 ? t('today.restOfDay') : t('today.nothingElse')}</div>
-          {rest.map((s: any) => (
+          {restTimed.map((s: any) => (
             <div key={s.id} style={{ display: 'flex', gap: 14, padding: '14px 0', borderTop: '1px solid var(--border-soft)', opacity: s.myStatus === 'skipped' ? 0.5 : 1 }}>
-              <div style={{ width: 56, flex: 'none', font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', paddingTop: 2 }}>{s.hour || '—'}</div>
+              <div style={{ width: 56, flex: 'none', font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', paddingTop: 2 }}>{s.hour}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ font: "600 15px/1.3 'Noto Sans Hebrew',sans-serif", textDecoration: s.myStatus === 'skipped' ? 'line-through' : 'none' }}>{displayName(s)}</div>
                 {s.note && <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{s.note}</div>}
@@ -152,6 +180,16 @@ export function Today() {
               </div>
             </div>
           ))}
+          {restUntimed.length > 0 && (
+            <Reorder.Group as="div" axis="y" values={restUntimed} onReorder={onReorderUntimed} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              <AnimatePresence initial={false}>
+                {restUntimed.map((s: any) => (
+                  <UntimedRow key={s.id} s={s} onDragEnd={persistUntimedOrder} onPostpone={() => setMoving(s)}
+                    displayName={displayName} t={t} />
+                ))}
+              </AnimatePresence>
+            </Reorder.Group>
+          )}
         </div>
       ) : (
         <div style={{ margin: '0 22px', border: '1px dashed var(--border)', borderRadius: 20, padding: '24px 20px', textAlign: 'center' }}>
@@ -214,5 +252,44 @@ export function Today() {
         )}
       </Drawer>
     </div>
+  );
+}
+
+// An attraction with no hour set — draggable to set the visiting order relative to the other
+// hour-less attractions that day (see onReorderUntimed in Today() for why only these are
+// draggable). Its own drag handle (not the whole row) starts the drag, same as City.tsx's
+// attraction rows, so tapping "postpone" or anything else in the row doesn't fight the gesture.
+function UntimedRow({ s, onDragEnd, onPostpone, displayName, t }: {
+  s: any; onDragEnd: () => void; onPostpone: () => void;
+  displayName: (e: any) => string; t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
+  const dragControls = useDragControls();
+  return (
+    <Reorder.Item
+      value={s}
+      as="div"
+      dragListener={false}
+      dragControls={dragControls}
+      onDragEnd={onDragEnd}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: s.myStatus === 'skipped' ? 0.5 : 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+      transition={{ type: 'spring', damping: 30, stiffness: 340 }}
+      style={{ display: 'flex', gap: 14, padding: '14px 0', borderTop: '1px solid var(--border-soft)', background: 'var(--bg)' }}
+    >
+      <div onPointerDown={(e) => dragControls.start(e)}
+        style={{ width: 56, flex: 'none', touchAction: 'none', cursor: 'grab', color: 'var(--text-dim-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <DragHandleIcon />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ font: "600 15px/1.3 'Noto Sans Hebrew',sans-serif", textDecoration: s.myStatus === 'skipped' ? 'line-through' : 'none' }}>{displayName(s)}</div>
+        {s.note && <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>{s.note}</div>}
+        <div style={{ display: 'flex', gap: 7, marginTop: 9, flexWrap: 'wrap' }}>
+          {s.duration && <span className="pill">{s.duration}</span>}
+          <span className="pill" style={{ border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{tagLabel(s.tag, t)}</span>
+          <span onClick={onPostpone} className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)' }}>{t('today.postpone')}</span>
+        </div>
+      </div>
+    </Reorder.Item>
   );
 }
