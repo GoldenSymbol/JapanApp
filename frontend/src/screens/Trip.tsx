@@ -5,7 +5,6 @@ import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
-import { lookupJapanKanji } from '../data/japanPlaceNames';
 
 function fmtRange(a: string, b: string) {
   const [, am, ad] = a.split('-');
@@ -20,7 +19,7 @@ export function Trip() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ nameHe: '', nameEn: '', nameJa: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
+  const [draft, setDraft] = useState({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
   const [addError, setAddError] = useState('');
   // Local buffers for text fields being edited on an existing destination. Typing writes only
   // here (instant, no network); the value is only sent to the server (and refreshed) on blur —
@@ -64,16 +63,9 @@ export function Trip() {
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     const toIso = (d: Date) => d.toISOString().slice(0, 10);
-    setDraft({ nameHe: '', nameEn: '', nameJa: '', startDate: toIso(start), endDate: toIso(end), transportIn: 'train', notes: '' });
+    setDraft({ nameHe: '', nameEn: '', startDate: toIso(start), endDate: toIso(end), transportIn: 'train', notes: '' });
     setAddError('');
     setAdding(true);
-  }
-  // Fully automatic, no field for it in the UI: tries the Hebrew name first, then English,
-  // against a curated list of known Japan place names. Anything not in that list just has no
-  // watermark, same as it silently does today.
-  function autoFillJa(nameHe: string, nameEn: string) {
-    const match = lookupJapanKanji(nameHe) || lookupJapanKanji(nameEn);
-    setDraft((d) => ({ ...d, nameJa: match }));
   }
   async function addDestination() {
     if (!draft.nameHe.trim()) { setAddError(t('trip.errorNoName')); return; }
@@ -81,7 +73,7 @@ export function Trip() {
     if (draft.endDate < draft.startDate) { setAddError(t('trip.errorDateOrder')); return; }
     setAddError('');
     await api('/destinations', { method: 'POST', json: draft });
-    setDraft({ nameHe: '', nameEn: '', nameJa: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
+    setDraft({ nameHe: '', nameEn: '', startDate: '', endDate: '', transportIn: 'train', notes: '' });
     setAdding(false);
     await refresh();
   }
@@ -172,12 +164,8 @@ export function Trip() {
         {editing && adding && (
           <div className="card" style={{ border: '1px dashed var(--border)', background: 'transparent' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              <input className="field" placeholder={t('trip.namePlaceholder')}
-                value={draft.nameHe}
-                onChange={(e) => { const nameHe = e.target.value; setDraft((d) => ({ ...d, nameHe })); autoFillJa(nameHe, draft.nameEn); }} />
-              <input className="field" placeholder={t('trip.nameEnPlaceholder')} dir="ltr"
-                value={draft.nameEn}
-                onChange={(e) => { const nameEn = e.target.value; setDraft((d) => ({ ...d, nameEn })); autoFillJa(draft.nameHe, nameEn); }} />
+              <input className="field" placeholder={t('trip.namePlaceholder')} value={draft.nameHe} onChange={(e) => setDraft({ ...draft, nameHe: e.target.value })} />
+              <input className="field" placeholder={t('trip.nameEnPlaceholder')} dir="ltr" value={draft.nameEn} onChange={(e) => setDraft({ ...draft, nameEn: e.target.value })} />
               <div style={{ font: "400 11px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>
                 {t('trip.nameEnHint')}
               </div>
