@@ -114,7 +114,7 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // city
     'city.tag.park': 'פארק',
-    'city.tag.temple': 'מקדש / ארמון',
+    'city.tag.temple': 'מקדש',
     'city.tag.street': 'שדרה',
     'city.tag.attraction': 'אטרקציה',
     'city.tag.food': 'אוכל',
@@ -474,7 +474,7 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // city
     'city.tag.park': 'Park',
-    'city.tag.temple': 'Temple / Palace',
+    'city.tag.temple': 'Temple',
     'city.tag.street': 'Street',
     'city.tag.attraction': 'Attraction',
     'city.tag.food': 'Food',
