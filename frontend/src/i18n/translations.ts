@@ -114,10 +114,11 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // city
     'city.tag.park': 'פארק',
-    'city.tag.temple': 'מקדש',
+    'city.tag.temple': 'מקדש / ארמון',
     'city.tag.street': 'שדרה',
     'city.tag.attraction': 'אטרקציה',
     'city.tag.food': 'אוכל',
+    'city.tag.nature': 'טבע',
     'city.duration.hour': 'שעה',
     'city.duration.2h': 'שעתיים',
     'city.duration.half-day': 'חצי יום',
@@ -473,10 +474,11 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // city
     'city.tag.park': 'Park',
-    'city.tag.temple': 'Temple',
+    'city.tag.temple': 'Temple / Palace',
     'city.tag.street': 'Street',
     'city.tag.attraction': 'Attraction',
     'city.tag.food': 'Food',
+    'city.tag.nature': 'Nature',
     'city.duration.hour': '1 hour',
     'city.duration.2h': '2 hours',
     'city.duration.half-day': 'Half day',
