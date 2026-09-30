@@ -248,6 +248,7 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
     <Reorder.Item
       value={s}
       as="div"
+      layout="position"
       dragListener={false}
       dragControls={dragControls}
       onDragEnd={onDragEnd}
