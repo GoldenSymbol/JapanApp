@@ -49,6 +49,21 @@ function navigationUrl(s: any, cityNameEn?: string) {
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
 
+// A plain <input type="time"> ignores its `placeholder` attribute — Chrome draws its own "--:--"
+// plus a clock icon regardless, and that native chrome paints on top of any overlay meant to
+// hide it (a CSS quirk specific to this input type, not fixable with z-index). So the hint lives
+// as a small label right next to the field instead of inside it, where it's guaranteed to render.
+function TimeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useLanguage();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 'none' }}>
+      <span style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>{t('city.hourPlaceholder')}</span>
+      <input className="field" type="time" style={{ width: 92, flex: 'none', padding: '5px 8px', textAlign: 'center' }}
+        value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
 export function City() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -183,8 +198,7 @@ export function City() {
                       {dayLabel(d)}
                     </div>
                   ))}
-                  <input className="field" type="time" style={{ width: 92, flex: 'none', padding: '5px 8px', textAlign: 'center' }}
-                    value={form.hour} onChange={(e) => setForm({ ...form, hour: e.target.value })} />
+                  <TimeField value={form.hour} onChange={(hour) => setForm({ ...form, hour })} />
                 </div>
                 <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
                   <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addSpot}>{t('common.add')}</div>
@@ -305,7 +319,7 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
             {days.map((d) => (
               <div key={d} onClick={() => onSetDay(d)} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${s.day === d ? 'var(--accent)' : 'var(--border)'}`, color: s.day === d ? 'var(--accent)' : 'var(--text-dim)' }}>{dayLabel(d)}</div>
             ))}
-            <input className="field" type="time" style={{ width: 92, flex: 'none', padding: '5px 8px', textAlign: 'center' }} value={s.hour || ''} onChange={(e) => onSetHour(e.target.value)} />
+            <TimeField value={s.hour || ''} onChange={onSetHour} />
           </div>
         )}
       </div>
