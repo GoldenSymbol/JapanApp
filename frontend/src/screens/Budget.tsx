@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
@@ -149,13 +149,20 @@ function BudgetPieView({ data }: { data: any }) {
 // its snapshot from TripDataContext (prefetched once alongside the rest of the trip's data)
 // instead of fetching its own on mount, and calls the matching refresh*() there after any
 // mutation instead of refetching locally — see that context for why.
-function BudgetSection({ basePath, data, refreshData, title, subtitle, newCategoryLabel, allowChart }: {
-  basePath: string; data: BudgetSnapshot | null; refreshData: () => Promise<void>;
+function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, newCategoryLabel, allowChart }: {
+  basePath: string; data: BudgetSnapshot | null; refreshData: () => Promise<void>; setData: (s: BudgetSnapshot) => void;
   title: string; subtitle?: string; newCategoryLabel: string; allowChart?: boolean;
 }) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
+  // Mirrors addVals so applyTx can read and clear an amount synchronously: two taps landing before
+  // React re-renders would otherwise both see the same filled input and record it twice.
+  const addValsRef = useRef<Record<string, string>>({});
+  function setAdd(id: string, value: string) {
+    addValsRef.current = { ...addValsRef.current, [id]: value };
+    setAddVals(addValsRef.current);
+  }
   const [view, setView] = useState<'list' | 'chart'>('chart');
   const [totalDraft, setTotalDraft] = useState('');
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
@@ -164,12 +171,30 @@ function BudgetSection({ basePath, data, refreshData, title, subtitle, newCatego
   async function renameCat(id: string, name: string) { await api(`${basePath}/categories/${id}`, { method: 'PATCH', json: { name } }); await refreshData(); }
   async function deleteCat(id: string) { await api(`${basePath}/categories/${id}`, { method: 'DELETE' }); await refreshData(); }
   async function addCategory() { await api(`${basePath}/categories`, { method: 'POST', json: { name: newCategoryLabel, planned: 0 } }); await refreshData(); }
+  // The POST answers with the full updated snapshot, so there's no follow-up GET. The input clears
+  // and the totals move immediately (the server's numbers replace the estimate when they arrive);
+  // clearing right away is also what stops a slow response from inviting a second tap that would
+  // record the same amount twice.
+  const txSeq = useRef(0);
   async function applyTx(id: string, direction: 'add' | 'subtract') {
-    const amount = parseFloat(addVals[id] || '0');
-    if (!amount) return;
-    await api(`${basePath}/categories/${id}/transactions`, { method: 'POST', json: { amount, direction } });
-    setAddVals((v) => ({ ...v, [id]: '' }));
-    await refreshData();
+    const amount = parseFloat(addValsRef.current[id] || '0');
+    if (!amount || !data) return;
+    const signed = direction === 'subtract' ? -Math.abs(amount) : Math.abs(amount);
+    setAdd(id, '');
+    const categories = data.categories.map((c) => {
+      if (c.id !== id) return c;
+      const spent = c.spent + signed;
+      return { ...c, spent, percent: c.planned > 0 ? Math.min(999, Math.round((spent / c.planned) * 100)) : 0 };
+    });
+    setData({ ...data, paid: data.paid + signed, categories });
+    const seq = ++txSeq.current;
+    try {
+      const snapshot = await api(`${basePath}/categories/${id}/transactions`, { method: 'POST', json: { amount, direction } });
+      if (seq === txSeq.current) setData(snapshot);
+    } catch {
+      await refreshData();
+      setAdd(id, String(amount));
+    }
   }
 
   if (!data) return null;
@@ -268,7 +293,7 @@ function BudgetSection({ basePath, data, refreshData, title, subtitle, newCatego
             {editing && (
               <div style={{ marginTop: 10, display: 'flex', gap: 7, alignItems: 'center' }}>
                 <input className="field" style={{ flex: 1, borderStyle: 'dashed' }} placeholder={t('budget.addExpensePlaceholder')} value={addVals[c.id] || ''}
-                  onChange={(e) => setAddVals((v) => ({ ...v, [c.id]: e.target.value }))}
+                  onChange={(e) => setAdd(c.id, e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && applyTx(c.id, 'add')} />
                 <div className="btn btn-accent" onClick={() => applyTx(c.id, 'add')}>{t('budget.addTx')}</div>
                 <div className="btn btn-outline" onClick={() => applyTx(c.id, 'subtract')}>{t('budget.subtractTx')}</div>
@@ -302,7 +327,7 @@ function BudgetSection({ basePath, data, refreshData, title, subtitle, newCatego
 
 export function Budget() {
   const { t } = useLanguage();
-  const { budget, refreshBudget, personalBudget, refreshPersonalBudget } = useTripData();
+  const { budget, refreshBudget, setBudgetSnapshot, personalBudget, refreshPersonalBudget, setPersonalBudgetSnapshot } = useTripData();
   const [mode, setMode] = useState<'general' | 'personal'>('general');
 
   return (
@@ -322,9 +347,9 @@ export function Budget() {
       </div>
 
       {mode === 'general' ? (
-        <BudgetSection basePath="/budget" data={budget} refreshData={refreshBudget} title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
+        <BudgetSection basePath="/budget" data={budget} refreshData={refreshBudget} setData={setBudgetSnapshot} title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
       ) : (
-        <BudgetSection basePath="/budget/personal" data={personalBudget} refreshData={refreshPersonalBudget} title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
+        <BudgetSection basePath="/budget/personal" data={personalBudget} refreshData={refreshPersonalBudget} setData={setPersonalBudgetSnapshot} title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
       )}
 
       <Converter />

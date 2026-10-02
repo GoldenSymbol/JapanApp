@@ -112,21 +112,26 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
   const cat = catDoc.data()!;
   let amount = Number(req.body?.amount || 0);
   amount = req.body?.direction === "subtract" ? -Math.abs(amount) : Math.abs(amount);
-  await tripRef(trip.id).collection("budgetTransactions").doc(randomUUID()).set({
+  const writeTx = tripRef(trip.id).collection("budgetTransactions").doc(randomUUID()).set({
     categoryId: catId,
     amount,
     note: req.body?.note || null,
     createdAtMs: Date.now(),
   });
   if (amount > 0) {
-    await createNotification({
-      tripId: trip.id,
-      actorUserId: req.userId!,
-      type: "new_expense",
-      titleKey: "notif.newExpense",
-      titleParams: { category: cat.name, amount: Math.round(amount) },
-      targetScreen: "budget",
-    });
+    await Promise.all([
+      writeTx,
+      createNotification({
+        tripId: trip.id,
+        actorUserId: req.userId!,
+        type: "new_expense",
+        titleKey: "notif.newExpense",
+        titleParams: { category: cat.name, amount: Math.round(amount) },
+        targetScreen: "budget",
+      }),
+    ]);
+  } else {
+    await writeTx;
   }
   res.json(await budgetSnapshot(trip.id, trip.budget_total));
 });

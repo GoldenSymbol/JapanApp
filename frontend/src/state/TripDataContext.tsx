@@ -59,8 +59,10 @@ interface TripDataState {
   refreshTripMeta: () => Promise<void>;
   budget: BudgetSnapshot | null;
   refreshBudget: () => Promise<void>;
+  setBudgetSnapshot: (s: BudgetSnapshot) => void;
   personalBudget: BudgetSnapshot | null;
   refreshPersonalBudget: () => Promise<void>;
+  setPersonalBudgetSnapshot: (s: BudgetSnapshot) => void;
   documentFolders: DocumentFolder[];
   refreshDocumentFolders: () => Promise<void>;
   // Attractions are per-destination rather than one trip-wide singleton, and a trip can have many
@@ -224,8 +226,8 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{
       destinations, loading, refresh, offline,
       tripMeta, refreshTripMeta,
-      budget, refreshBudget,
-      personalBudget, refreshPersonalBudget,
+      budget, refreshBudget, setBudgetSnapshot: setBudget,
+      personalBudget, refreshPersonalBudget, setPersonalBudgetSnapshot: setPersonalBudget,
       documentFolders, refreshDocumentFolders,
       attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
     }}>
