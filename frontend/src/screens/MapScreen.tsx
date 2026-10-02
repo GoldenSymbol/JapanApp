@@ -193,7 +193,8 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
     onDonePlacing();
   }
 
-  const points = useMemo(() => spots.filter((s) => s.lat && s.lng).map((s) => [s.lat, s.lng] as [number, number]), [spots]);
+  // Skipped (✕) attractions are hidden from the map entirely — unmarking the ✕ brings them back.
+  const points = useMemo(() => spots.filter((s) => s.lat && s.lng && s.myStatus !== 'skipped').map((s) => [s.lat, s.lng] as [number, number]), [spots]);
   const routeLine = route.map((id) => spots.find((s) => s.id === id)).filter((s): s is typeof spots[number] & { lat: number; lng: number } => !!s?.lat && !!s?.lng).map((s) => [s.lat, s.lng] as [number, number]);
 
   // The road-following version of routeLine, fetched from OSRM. Debounced so rapid taps while
@@ -249,7 +250,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
             <FitBounds points={points.length ? points : [[city.lat, city.lng]]} />
             {placingSpot && <MapClickHandler onClick={placeAt} />}
             {routeLine.length >= 2 && <Polyline positions={drivingRoute || routeLine} pathOptions={{ color: '#D9564B', weight: 3, opacity: 0.9 }} />}
-            {spots.filter((s): s is typeof spots[number] & { lat: number; lng: number } => !!s.lat && !!s.lng).map((s) => {
+            {spots.filter((s): s is typeof spots[number] & { lat: number; lng: number } => !!s.lat && !!s.lng && s.myStatus !== 'skipped').map((s) => {
               const orderIdx = route.indexOf(s.id);
               const inRoute = orderIdx >= 0;
               const tagColor = TAGS[s.tag]?.color || '#6FA8DC';
