@@ -406,9 +406,9 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
         )}
         {!editing && s.note && <div style={{ font: "400 13px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{s.note}</div>}
         <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {!editing && s.duration && <span className="pill">{durationLabel(s.duration, t)}</span>}
-          {!editing && <span className="pill" style={{ border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{tagLabel(s.tag, t)}</span>}
-          {!editing && (s.day || s.hour) && <span dir="ltr" className="pill" style={{ border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
+          {!editing && s.duration && <span className="pill" style={{ pointerEvents: 'none' }}>{durationLabel(s.duration, t)}</span>}
+          {!editing && <span className="pill" style={{ pointerEvents: 'none', border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{tagLabel(s.tag, t)}</span>}
+          {!editing && (s.day || s.hour) && <span dir="ltr" className="pill" style={{ pointerEvents: 'none', border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
           <a href={navigationUrl(s, city.nameEn)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
             className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', textDecoration: 'none' }}>
             <NavigationIcon /> {t('city.navigate')}
