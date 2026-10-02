@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
+import { EditIcon, CheckIcon } from '../components/Icons';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
 const CURRENCY_SYMBOLS: Record<string, string> = { ILS: '₪', JPY: '¥', USD: '$', EUR: '€' };
@@ -181,8 +182,9 @@ function BudgetSection({ basePath, data, refreshData, title, subtitle, newCatego
           <div style={{ font: "600 20px/1.2 'Noto Sans Hebrew',sans-serif" }}>{title}</div>
           {subtitle && <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{subtitle}</div>}
         </div>
-        <div className="pill" onClick={() => setEditing((v) => !v)} style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
-          {editing ? t('common.done') : t('common.edit')}
+        <div className="icon-btn" onClick={() => setEditing((v) => !v)} aria-label={editing ? t('common.done') : t('common.edit')}
+          style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
+          {editing ? <CheckIcon /> : <EditIcon />}
         </div>
       </div>
 

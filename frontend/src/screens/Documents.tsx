@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, apiUpload, apiDownload, ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
-import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon, EditIcon } from '../components/Icons';
+import { FolderIcon, DotsIcon, TrashIcon, ShareIcon, LinkIcon, UploadIcon, FileIcon, EditIcon, CheckIcon } from '../components/Icons';
 import { PdfCanvas } from '../components/PdfCanvas';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData } from '../state/TripDataContext';
@@ -252,9 +252,9 @@ export function Documents() {
             {t('documents.folderCount', { count: folders.length })}
           </div>
         </div>
-        <div className="pill" onClick={() => { setEditing((v) => !v); setOpenFolderId(null); }}
-          style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
-          {editing ? t('common.done') : t('common.edit')}
+        <div className="icon-btn" onClick={() => { setEditing((v) => !v); setOpenFolderId(null); }} aria-label={editing ? t('common.done') : t('common.edit')}
+          style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
+          {editing ? <CheckIcon /> : <EditIcon />}
         </div>
       </div>
 

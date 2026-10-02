@@ -5,7 +5,7 @@ import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
-import { NavigationIcon, DragHandleIcon, EditIcon } from '../components/Icons';
+import { NavigationIcon, DragHandleIcon, EditIcon, CheckIcon } from '../components/Icons';
 import { Drawer } from '../components/Drawer';
 
 // Colors only — display labels come from translations.ts (city.tag.*) so they follow the UI
@@ -303,8 +303,9 @@ export function City() {
       <div style={{ padding: '0 22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0 6px' }}>
           <div className="section-label">{t('city.attractionsHeader', { done: doneCount, total: spots.length })}</div>
-          <div className="pill" onClick={() => setEditing((v) => !v)} style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)' }}>
-            {editing ? t('common.done') : t('common.edit')}
+          <div className="icon-btn" onClick={() => setEditing((v) => !v)} aria-label={editing ? t('common.done') : t('common.edit')}
+            style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
+            {editing ? <CheckIcon /> : <EditIcon />}
           </div>
         </div>
 

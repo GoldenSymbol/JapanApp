@@ -5,6 +5,7 @@ import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
+import { EditIcon, CheckIcon } from '../components/Icons';
 
 function fmtRange(a: string, b: string) {
   const [, am, ad] = a.split('-');
@@ -87,9 +88,9 @@ export function Trip() {
             {t('trip.destinationsCount', { count: destinations.length })} · <span dir="ltr">{tripRange}</span>
           </div>
         </div>
-        <div className="pill" onClick={() => setEditing((v) => !v)}
-          style={{ cursor: 'pointer', border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text)', padding: '8px 14px' }}>
-          {editing ? t('common.done') : t('common.edit')}
+        <div className="icon-btn" onClick={() => setEditing((v) => !v)} aria-label={editing ? t('common.done') : t('common.edit')}
+          style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
+          {editing ? <CheckIcon /> : <EditIcon />}
         </div>
       </div>
 
