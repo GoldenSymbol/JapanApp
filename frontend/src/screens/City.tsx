@@ -66,15 +66,18 @@ function TimeField({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-// A field-styled button rather than an always-expanded row of pills — tapping opens a Drawer
-// with the actual picker (TagPicker/DurationPicker/DayPicker below). Shows the current value, or
-// the placeholder dimmed when nothing's picked yet.
-function PickerField({ value, placeholder, onClick }: { value: string; placeholder: string; onClick: () => void }) {
+// A compact pill — same size/shape as the tag/duration/day pills shown read-only elsewhere in
+// this screen — showing the current value (or the placeholder, dimmed, when nothing's picked
+// yet). Tapping it opens a Drawer with the actual picker (TagPicker/DurationPicker/DayPicker
+// below) instead of expanding inline.
+function PickerPill({ value, placeholder, color, onClick }: { value: string; placeholder: string; color?: string; onClick: () => void }) {
+  const active = !!value;
+  const activeColor = color || 'var(--accent)';
   return (
-    <div className="field" onClick={onClick}
-      style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-      <span style={{ color: value ? 'var(--text)' : 'var(--text-dim)' }}>{value || placeholder}</span>
-      <span style={{ color: 'var(--text-dim-2)', fontSize: 11 }}>⌄</span>
+    <div onClick={onClick}
+      style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
+        border: `1px solid ${active ? activeColor : 'var(--border)'}`, color: active ? activeColor : 'var(--text-dim)' }}>
+      {value || placeholder}
     </div>
   );
 }
@@ -282,16 +285,10 @@ export function City() {
               <div className="card" style={{ background: 'var(--card-soft)' }}>
                 <input className="field" placeholder={t('city.namePlaceholder')} value={form.nameHe} onChange={(e) => setForm({ ...form, nameHe: e.target.value })} />
                 <input className="field" style={{ marginTop: 8 }} placeholder={t('city.nameEnPlaceholder')} dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} />
-                <div style={{ marginTop: 10 }}>
-                  <PickerField value={form.tag ? t(`city.tag.${form.tag}`) : ''} placeholder={t('city.tagPlaceholder')} onClick={() => setOpenPicker('tag')} />
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <PickerField value={form.duration ? t(`city.duration.${form.duration}`) : ''} placeholder={t('city.durationPlaceholder')} onClick={() => setOpenPicker('duration')} />
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <PickerField value={form.day ? dayLabel(form.day) : ''} placeholder={t('city.dayPlaceholder')} onClick={() => setOpenPicker('day')} />
-                  </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 10 }}>
+                  <PickerPill value={form.tag ? t(`city.tag.${form.tag}`) : ''} placeholder={t('city.tagPlaceholder')} color={TAGS[form.tag]?.color} onClick={() => setOpenPicker('tag')} />
+                  <PickerPill value={form.duration ? t(`city.duration.${form.duration}`) : ''} placeholder={t('city.durationPlaceholder')} onClick={() => setOpenPicker('duration')} />
+                  <PickerPill value={form.day ? dayLabel(form.day) : ''} placeholder={t('city.dayPlaceholder')} onClick={() => setOpenPicker('day')} />
                   <TimeField value={form.hour} onChange={(hour) => setForm({ ...form, hour })} />
                 </div>
                 <div style={{ marginTop: 8 }}>
@@ -392,12 +389,10 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
               onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== s.nameHe) onSetName({ nameHe: v }); }} />
             <input className="field" dir="ltr" placeholder={t('city.nameEnShort')} defaultValue={s.nameEn || ''}
               onBlur={(e) => { if (e.target.value !== s.nameEn) onSetName({ nameEn: e.target.value }); }} />
-            <PickerField value={s.tag ? t(`city.tag.${s.tag}`) : ''} placeholder={t('city.tagPlaceholder')} onClick={() => setOpenPicker('tag')} />
-            <PickerField value={s.duration ? durationLabel(s.duration, t) : ''} placeholder={t('city.durationPlaceholder')} onClick={() => setOpenPicker('duration')} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <PickerField value={s.day ? dayLabel(s.day) : ''} placeholder={t('city.dayPlaceholder')} onClick={() => setOpenPicker('day')} />
-              </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              <PickerPill value={s.tag ? t(`city.tag.${s.tag}`) : ''} placeholder={t('city.tagPlaceholder')} color={TAGS[s.tag]?.color} onClick={() => setOpenPicker('tag')} />
+              <PickerPill value={s.duration ? durationLabel(s.duration, t) : ''} placeholder={t('city.durationPlaceholder')} onClick={() => setOpenPicker('duration')} />
+              <PickerPill value={s.day ? dayLabel(s.day) : ''} placeholder={t('city.dayPlaceholder')} onClick={() => setOpenPicker('day')} />
               <TimeField value={s.hour || ''} onChange={onSetHour} />
             </div>
             <div><NoteButton value={s.note || ''} onClick={() => setOpenPicker('note')} /></div>
