@@ -61,7 +61,8 @@ function TimeField({ value, onChange }: { value: string; onChange: (v: string) =
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 'none' }}>
       <span style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>{t('city.hourPlaceholder')}</span>
       <input className="field" type="time" style={{ width: 92, flex: 'none', padding: '5px 8px', textAlign: 'center' }}
-        value={value} onChange={(e) => onChange(e.target.value)} />
+        value={value} onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()} />
     </div>
   );
 }
