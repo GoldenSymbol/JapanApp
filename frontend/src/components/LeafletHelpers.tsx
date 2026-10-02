@@ -40,14 +40,16 @@ export function pinIcon(opts: { name: string; dotBg: string; dotBorder: string; 
   // a stadium/pill shape instead of a circle, so the numbers sit inside with breathing room
   // instead of spilling past a circle's edges.
   const isPill = opts.pill && (opts.dotText?.length ?? 0) > 2;
-  const width = isPill ? Math.round(size * 1.65) : size;
+  // Pill width follows its text (so "10·12·19" fits as well as "5·6"); a circle stays fixed.
+  const width = isPill ? 'max-content' : `${size}px`;
+  const minWidth = isPill ? Math.round(size * 1.65) : size;
   const dotFont = isPill ? Math.round(size * 0.42) : Math.round(size * 0.5);
   const dotRadius = isPill ? '999px' : '50%';
   return L.divIcon({
     className: 'leaflet-ltr-icon',
     html: `
-      <div style="position:relative;width:${width}px;height:${size}px;transform:translate(-50%,-50%)">
-        <div style="width:${width}px;height:${size}px;border-radius:${dotRadius};background:${opts.dotBg};border:2px solid ${opts.dotBorder};display:flex;align-items:center;justify-content:center;font:600 ${dotFont}px 'Noto Sans Hebrew',sans-serif;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);padding:0 3px;white-space:nowrap">${opts.dotText || ''}</div>
+      <div style="position:relative;width:${width};min-width:${minWidth}px;height:${size}px;transform:translate(-50%,-50%)">
+        <div style="width:${width};min-width:${minWidth}px;height:${size}px;border-radius:${dotRadius};background:${opts.dotBg};border:2px solid ${opts.dotBorder};display:flex;align-items:center;justify-content:center;font:600 ${dotFont}px 'Noto Sans Hebrew',sans-serif;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);padding:0 3px;white-space:nowrap">${opts.dotText || ''}</div>
         <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;white-space:nowrap;background:${opts.dark ? 'rgba(20,22,26,.75)' : 'rgba(255,255,255,.92)'};color:${opts.dark ? '#F6F4EF' : '#14161A'};font:600 11px 'Noto Sans Hebrew',sans-serif;padding:2px 8px;border-radius:999px">${opts.name}</div>
       </div>`,
     iconSize: [0, 0],
