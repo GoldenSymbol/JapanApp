@@ -77,7 +77,7 @@ export function City() {
   const city = destinations.find((d) => d.id === id);
   const spots = attractionsByDestination[id || ''] || [];
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
+  const [form, setForm] = useState({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '', note: '' });
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => { if (id) ensureAttractions(id); }, [id, ensureAttractions]);
@@ -96,7 +96,7 @@ export function City() {
   async function addSpot() {
     if (!form.nameHe.trim() || !id) return;
     await api(`/destinations/${id}/attractions`, { method: 'POST', json: { ...form, day: form.day || null, hour: form.hour || null } });
-    setForm({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '' });
+    setForm({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '', note: '' });
     setShowForm(false);
     await Promise.all([refreshAttractions(id), refreshTripData()]);
   }
@@ -129,6 +129,11 @@ export function City() {
   async function setSpotTag(spotId: string, tag: string) {
     if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { tag } });
+    await refreshAttractions(id);
+  }
+  async function setSpotNote(spotId: string, note: string) {
+    if (!id) return;
+    await api(`/attractions/${spotId}`, { method: 'PATCH', json: { note: note || null } });
     await refreshAttractions(id);
   }
   function placeOnMap(spotId: string) {
@@ -201,6 +206,8 @@ export function City() {
                   ))}
                   <TimeField value={form.hour} onChange={(hour) => setForm({ ...form, hour })} />
                 </div>
+                <textarea className="field" style={{ marginTop: 8, resize: 'none' }} rows={2} placeholder={t('trip.notesPlaceholder')}
+                  value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
                 <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
                   <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addSpot}>{t('common.add')}</div>
                   <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setShowForm(false)}>{t('common.cancel')}</div>
@@ -227,6 +234,7 @@ export function City() {
                 onSetHour={(h: string) => setSpotHour(s.id, h)}
                 onSetName={(patch: { nameHe?: string; nameEn?: string }) => setSpotName(s.id, patch)}
                 onSetTag={(tag: string) => setSpotTag(s.id, tag)}
+                onSetNote={(note: string) => setSpotNote(s.id, note)}
               />
             ))}
           </AnimatePresence>
@@ -236,11 +244,12 @@ export function City() {
   );
 }
 
-function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag }: {
+function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag, onSetNote }: {
   s: any; editing: boolean; days: string[]; city: any; onDragEnd: () => void;
   onToggleMark: () => void; onRemove: () => void; onPlaceOnMap: () => void;
   onSetDay: (d: string) => void; onSetHour: (h: string) => void;
   onSetName: (patch: { nameHe?: string; nameEn?: string }) => void; onSetTag: (tag: string) => void;
+  onSetNote: (note: string) => void;
 }) {
   const dragControls = useDragControls();
   const { t, displayName } = useLanguage();
@@ -288,6 +297,8 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
                 </div>
               ))}
             </div>
+            <textarea className="field" style={{ resize: 'none' }} rows={2} placeholder={t('trip.notesPlaceholder')} defaultValue={s.note || ''}
+              onBlur={(e) => { if (e.target.value !== (s.note || '')) onSetNote(e.target.value); }} />
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
