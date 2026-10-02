@@ -27,6 +27,7 @@ export function Trip() {
   // saving on every keystroke was causing the server round-trip to race the next keystroke and
   // make the input jump/revert mid-typing.
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [nameEnDrafts, setNameEnDrafts] = useState<Record<string, string>>({});
   const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
 
   const first = destinations[0];
@@ -41,6 +42,11 @@ export function Trip() {
     const value = nameDrafts[id];
     if (value === undefined) return;
     saveDest(id, { nameHe: value });
+  }
+  function flushNameEn(id: string) {
+    const value = nameEnDrafts[id];
+    if (value === undefined) return;
+    saveDest(id, { nameEn: value.trim() });
   }
   function flushNotes(id: string) {
     const value = notesDrafts[id];
@@ -127,6 +133,10 @@ export function Trip() {
                     value={nameDrafts[c.id] ?? c.nameHe}
                     onChange={(e) => setNameDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
                     onBlur={() => flushName(c.id)} />
+                  <input className="field" dir="ltr" placeholder={t('trip.nameEnPlaceholder')}
+                    value={nameEnDrafts[c.id] ?? c.nameEn ?? ''}
+                    onChange={(e) => setNameEnDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                    onBlur={() => flushNameEn(c.id)} />
                   <textarea className="field" placeholder={t('trip.notesPlaceholder')} rows={2} style={{ resize: 'none', font: "400 16px/1.5 'Noto Sans Hebrew',sans-serif" }}
                     value={notesDrafts[c.id] ?? c.notes ?? ''}
                     onChange={(e) => setNotesDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
@@ -140,7 +150,10 @@ export function Trip() {
               ) : (
                 <div onClick={() => navigate(`/city/${c.id}`)} style={{ cursor: 'pointer' }}>
                   <div dir="ltr" style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', letterSpacing: '.6px', textAlign: 'right' }}>{fmtRange(c.startDate, c.endDate)}</div>
-                  <div style={{ font: "600 24px/1.2 'Noto Sans Hebrew',sans-serif", marginTop: 7 }}>{displayName(c)}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 7 }}>
+                    <div style={{ font: "600 24px/1.2 'Noto Sans Hebrew',sans-serif" }}>{displayName(c)}</div>
+                    {c.nameEn && <div dir="ltr" style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>{c.nameEn}</div>}
+                  </div>
                   {c.notes && (
                     <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>
                       {c.notes}
