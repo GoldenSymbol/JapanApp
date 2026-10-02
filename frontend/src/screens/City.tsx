@@ -18,7 +18,7 @@ export const TAGS: Record<string, { color: string }> = {
   food: { color: '#C77DBB' },
   nature: { color: '#3F8F6F' },
 };
-const DURATION_KEYS = ['hour', '2h', 'half-day', 'full-day'] as const;
+const DURATION_KEYS = ['hour', 'half-day', 'full-day'] as const;
 const DURATION_KEY_SET: Set<string> = new Set(DURATION_KEYS);
 // Duration is picked from the fixed set above in the add/edit form, but older entries (seeded or
 // added before this field existed as an enum) can hold arbitrary freeform text (e.g. "3 hours")
@@ -106,8 +106,27 @@ function TagPicker({ value, onSelect }: { value: string; onSelect: (v: string) =
     </div>
   );
 }
+// Besides the fixed set of durations, the user can also type something freeform (an existing
+// value that isn't one of DURATION_KEYS counts as custom too, so re-opening this picker on such
+// an attraction drops straight into the text editor instead of looking like nothing is selected).
 function DurationPicker({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
   const { t } = useLanguage();
+  const isKnown = DURATION_KEY_SET.has(value) || value === '';
+  const [customMode, setCustomMode] = useState(!isKnown);
+  const [customText, setCustomText] = useState(isKnown ? '' : value);
+
+  if (customMode) {
+    return (
+      <>
+        <input className="field" placeholder={t('city.durationPlaceholder')} value={customText}
+          onChange={(e) => setCustomText(e.target.value)} autoFocus />
+        <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
+          <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={() => onSelect(customText)}>{t('common.save')}</div>
+          <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setCustomMode(false)}>{t('common.cancel')}</div>
+        </div>
+      </>
+    );
+  }
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignContent: 'flex-start', minHeight: '45vh' }}>
       {DURATION_KEYS.map((d) => (
@@ -117,6 +136,16 @@ function DurationPicker({ value, onSelect }: { value: string; onSelect: (v: stri
           {t(`city.duration.${d}`)}
         </div>
       ))}
+      <div onClick={() => onSelect('')}
+        style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
+          border: `1.5px solid ${!value ? 'var(--accent)' : 'var(--border)'}`, color: !value ? 'var(--accent)' : 'var(--text)' }}>
+        {t('city.duration.none')}
+      </div>
+      <div onClick={() => setCustomMode(true)}
+        style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
+          border: `1.5px solid ${!isKnown ? 'var(--accent)' : 'var(--border)'}`, color: !isKnown ? 'var(--accent)' : 'var(--text)' }}>
+        {t('city.duration.custom')}
+      </div>
     </div>
   );
 }
