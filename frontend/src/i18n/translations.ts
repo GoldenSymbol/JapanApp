@@ -136,6 +136,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     'city.unplaced': 'לא ממוקם — סמן מיקום',
     'city.updateLocation': 'עדכן מיקום',
     'city.remove': 'הסר',
+    'city.tagPlaceholder': 'תגית',
+    'city.durationPlaceholder': 'משך זמן',
+    'city.dayPlaceholder': 'תאריך',
+    'city.pickTag': 'בחירת תגית',
+    'city.pickDuration': 'בחירת משך זמן',
+    'city.pickDay': 'בחירת תאריך',
+    'city.editNote': 'הערה',
 
     // map
     'map.title': 'מפת המסלול',
@@ -496,6 +503,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     'city.unplaced': 'Not placed — set location',
     'city.updateLocation': 'Update location',
     'city.remove': 'Remove',
+    'city.tagPlaceholder': 'Tag',
+    'city.durationPlaceholder': 'Duration',
+    'city.dayPlaceholder': 'Date',
+    'city.pickTag': 'Choose a tag',
+    'city.pickDuration': 'Choose a duration',
+    'city.pickDay': 'Choose a date',
+    'city.editNote': 'Note',
 
     // map
     'map.title': 'Route map',

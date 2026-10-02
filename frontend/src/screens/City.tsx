@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
-import { NavigationIcon, DragHandleIcon } from '../components/Icons';
+import { NavigationIcon, DragHandleIcon, EditIcon } from '../components/Icons';
+import { Drawer } from '../components/Drawer';
 
 // Colors only — display labels come from translations.ts (city.tag.*) so they follow the UI
 // language; the Hebrew key names below are just internal ids, not shown anywhere.
@@ -65,6 +66,106 @@ function TimeField({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
+// A field-styled button rather than an always-expanded row of pills — tapping opens a Drawer
+// with the actual picker (TagPicker/DurationPicker/DayPicker below). Shows the current value, or
+// the placeholder dimmed when nothing's picked yet.
+function PickerField({ value, placeholder, onClick }: { value: string; placeholder: string; onClick: () => void }) {
+  return (
+    <div className="field" onClick={onClick}
+      style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: value ? 'var(--text)' : 'var(--text-dim)' }}>{value || placeholder}</span>
+      <span style={{ color: 'var(--text-dim-2)', fontSize: 11 }}>⌄</span>
+    </div>
+  );
+}
+// Shared title bar for the three tap-to-select pill drawers below (tag/duration/day) — the note
+// drawer has its own layout since it holds a textarea instead of a pill list.
+function PickerDrawer({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  return (
+    <Drawer open={open} onClose={onClose}>
+      <div style={{ font: "600 16px/1.3 'Noto Sans Hebrew',sans-serif", marginBottom: 14 }}>{title}</div>
+      {children}
+    </Drawer>
+  );
+}
+function TagPicker({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
+  const { t } = useLanguage();
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {Object.entries(TAGS).map(([key, tag]) => (
+        <div key={key} onClick={() => onSelect(key)}
+          style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
+            border: `1.5px solid ${value === key ? tag.color : 'var(--border)'}`, color: value === key ? tag.color : 'var(--text)' }}>
+          {t(`city.tag.${key}`)}
+        </div>
+      ))}
+    </div>
+  );
+}
+function DurationPicker({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
+  const { t } = useLanguage();
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {DURATION_KEYS.map((d) => (
+        <div key={d} onClick={() => onSelect(d)}
+          style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
+            border: `1.5px solid ${value === d ? 'var(--accent)' : 'var(--border)'}`, color: value === d ? 'var(--accent)' : 'var(--text)' }}>
+          {t(`city.duration.${d}`)}
+        </div>
+      ))}
+    </div>
+  );
+}
+function DayPicker({ value, days, onSelect }: { value: string; days: string[]; onSelect: (v: string) => void }) {
+  const { t } = useLanguage();
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div onClick={() => onSelect('')}
+        style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, cursor: 'pointer',
+          border: `1.5px solid ${!value ? 'var(--accent)' : 'var(--border)'}`, color: !value ? 'var(--accent)' : 'var(--text)' }}>
+        {t('city.noDay')}
+      </div>
+      {days.map((d) => (
+        <div key={d} onClick={() => onSelect(d)}
+          style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, cursor: 'pointer',
+            border: `1.5px solid ${value === d ? 'var(--accent)' : 'var(--border)'}`, color: value === d ? 'var(--accent)' : 'var(--text)' }}>
+          {dayLabel(d)}
+        </div>
+      ))}
+    </div>
+  );
+}
+// Notes are free text, not a pick-and-close list, so this drawer needs its own local draft and an
+// explicit save — the Save/Cancel buttons double as the drawer's close affordance.
+function NoteEditor({ value, onSave, onClose }: { value: string; onSave: (v: string) => void; onClose: () => void }) {
+  const { t } = useLanguage();
+  const [text, setText] = useState(value);
+  return (
+    <>
+      <textarea className="field" rows={4} style={{ resize: 'none' }} placeholder={t('trip.notesPlaceholder')}
+        value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+      <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
+        <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={() => { onSave(text); onClose(); }}>{t('common.save')}</div>
+        <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={onClose}>{t('common.cancel')}</div>
+      </div>
+    </>
+  );
+}
+// The note button itself — a pill showing the note text (or the placeholder, dimmed) with an
+// edit affordance, used in both the add form and the per-row edit, instead of an always-visible
+// textarea that stayed expanded whether or not there was anything in it.
+function NoteButton({ value, onClick }: { value: string; onClick: () => void }) {
+  const { t } = useLanguage();
+  return (
+    <div className="pill" onClick={onClick}
+      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid var(--border)',
+        color: value ? 'var(--text)' : 'var(--text-dim)', maxWidth: '100%' }}>
+      <EditIcon />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || t('trip.notesPlaceholder')}</span>
+    </div>
+  );
+}
+
 export function City() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -79,6 +180,7 @@ export function City() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '', note: '' });
   const [showForm, setShowForm] = useState(false);
+  const [openPicker, setOpenPicker] = useState<'tag' | 'duration' | 'day' | 'note' | null>(null);
 
   useEffect(() => { if (id) ensureAttractions(id); }, [id, ensureAttractions]);
 
@@ -131,6 +233,11 @@ export function City() {
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { tag } });
     await refreshAttractions(id);
   }
+  async function setSpotDuration(spotId: string, duration: string) {
+    if (!id) return;
+    await api(`/attractions/${spotId}`, { method: 'PATCH', json: { duration } });
+    await refreshAttractions(id);
+  }
   async function setSpotNote(spotId: string, note: string) {
     if (!id) return;
     await api(`/attractions/${spotId}`, { method: 'PATCH', json: { note: note || null } });
@@ -175,39 +282,21 @@ export function City() {
               <div className="card" style={{ background: 'var(--card-soft)' }}>
                 <input className="field" placeholder={t('city.namePlaceholder')} value={form.nameHe} onChange={(e) => setForm({ ...form, nameHe: e.target.value })} />
                 <input className="field" style={{ marginTop: 8 }} placeholder={t('city.nameEnPlaceholder')} dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                  {Object.entries(TAGS).map(([key, tag]) => (
-                    <div key={key} onClick={() => setForm({ ...form, tag: key })}
-                      style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
-                        border: `1px solid ${form.tag === key ? tag.color : 'var(--border)'}`, color: form.tag === key ? tag.color : 'var(--text-dim)' }}>
-                      {t(`city.tag.${key}`)}
-                    </div>
-                  ))}
+                <div style={{ marginTop: 10 }}>
+                  <PickerField value={form.tag ? t(`city.tag.${form.tag}`) : ''} placeholder={t('city.tagPlaceholder')} onClick={() => setOpenPicker('tag')} />
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                  {DURATION_KEYS.map((d) => (
-                    <div key={d} onClick={() => setForm({ ...form, duration: d })}
-                      style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
-                        border: `1px solid ${form.duration === d ? 'var(--accent)' : 'var(--border)'}`, color: form.duration === d ? 'var(--accent)' : 'var(--text-dim)' }}>
-                      {t(`city.duration.${d}`)}
-                    </div>
-                  ))}
+                <div style={{ marginTop: 8 }}>
+                  <PickerField value={form.duration ? t(`city.duration.${form.duration}`) : ''} placeholder={t('city.durationPlaceholder')} onClick={() => setOpenPicker('duration')} />
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                  <div onClick={() => setForm({ ...form, day: '' })}
-                    style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, cursor: 'pointer', border: `1px solid ${!form.day ? 'var(--accent)' : 'var(--border)'}`, color: !form.day ? 'var(--accent)' : 'var(--text-dim)' }}>
-                    {t('city.noDay')}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <PickerField value={form.day ? dayLabel(form.day) : ''} placeholder={t('city.dayPlaceholder')} onClick={() => setOpenPicker('day')} />
                   </div>
-                  {days.map((d) => (
-                    <div key={d} onClick={() => setForm({ ...form, day: d })}
-                      style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, cursor: 'pointer', border: `1px solid ${form.day === d ? 'var(--accent)' : 'var(--border)'}`, color: form.day === d ? 'var(--accent)' : 'var(--text-dim)' }}>
-                      {dayLabel(d)}
-                    </div>
-                  ))}
                   <TimeField value={form.hour} onChange={(hour) => setForm({ ...form, hour })} />
                 </div>
-                <textarea className="field" style={{ marginTop: 8, resize: 'none' }} rows={2} placeholder={t('trip.notesPlaceholder')}
-                  value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+                <div style={{ marginTop: 8 }}>
+                  <NoteButton value={form.note} onClick={() => setOpenPicker('note')} />
+                </div>
                 <div style={{ display: 'flex', gap: 7, marginTop: 12 }}>
                   <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={addSpot}>{t('common.add')}</div>
                   <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={() => setShowForm(false)}>{t('common.cancel')}</div>
@@ -216,6 +305,19 @@ export function City() {
             )}
           </div>
         )}
+
+        <PickerDrawer open={openPicker === 'tag'} onClose={() => setOpenPicker(null)} title={t('city.pickTag')}>
+          <TagPicker value={form.tag} onSelect={(tag) => { setForm({ ...form, tag }); setOpenPicker(null); }} />
+        </PickerDrawer>
+        <PickerDrawer open={openPicker === 'duration'} onClose={() => setOpenPicker(null)} title={t('city.pickDuration')}>
+          <DurationPicker value={form.duration} onSelect={(duration) => { setForm({ ...form, duration }); setOpenPicker(null); }} />
+        </PickerDrawer>
+        <PickerDrawer open={openPicker === 'day'} onClose={() => setOpenPicker(null)} title={t('city.pickDay')}>
+          <DayPicker value={form.day} days={days} onSelect={(day) => { setForm({ ...form, day }); setOpenPicker(null); }} />
+        </PickerDrawer>
+        <PickerDrawer open={openPicker === 'note'} onClose={() => setOpenPicker(null)} title={t('city.editNote')}>
+          <NoteEditor value={form.note} onSave={(note) => setForm({ ...form, note })} onClose={() => setOpenPicker(null)} />
+        </PickerDrawer>
 
         <Reorder.Group as="div" axis="y" values={spots} onReorder={(v) => id && setAttractionsLocal(id, v)} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           <AnimatePresence initial={false}>
@@ -234,6 +336,7 @@ export function City() {
                 onSetHour={(h: string) => setSpotHour(s.id, h)}
                 onSetName={(patch: { nameHe?: string; nameEn?: string }) => setSpotName(s.id, patch)}
                 onSetTag={(tag: string) => setSpotTag(s.id, tag)}
+                onSetDuration={(duration: string) => setSpotDuration(s.id, duration)}
                 onSetNote={(note: string) => setSpotNote(s.id, note)}
               />
             ))}
@@ -244,15 +347,16 @@ export function City() {
   );
 }
 
-function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag, onSetNote }: {
+function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag, onSetDuration, onSetNote }: {
   s: any; editing: boolean; days: string[]; city: any; onDragEnd: () => void;
   onToggleMark: () => void; onRemove: () => void; onPlaceOnMap: () => void;
   onSetDay: (d: string) => void; onSetHour: (h: string) => void;
   onSetName: (patch: { nameHe?: string; nameEn?: string }) => void; onSetTag: (tag: string) => void;
-  onSetNote: (note: string) => void;
+  onSetDuration: (d: string) => void; onSetNote: (note: string) => void;
 }) {
   const dragControls = useDragControls();
   const { t, displayName } = useLanguage();
+  const [openPicker, setOpenPicker] = useState<'tag' | 'duration' | 'day' | 'note' | null>(null);
   return (
     <Reorder.Item
       value={s}
@@ -288,17 +392,15 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
               onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== s.nameHe) onSetName({ nameHe: v }); }} />
             <input className="field" dir="ltr" placeholder={t('city.nameEnShort')} defaultValue={s.nameEn || ''}
               onBlur={(e) => { if (e.target.value !== s.nameEn) onSetName({ nameEn: e.target.value }); }} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {Object.entries(TAGS).map(([key, tag]) => (
-                <div key={key} onClick={() => onSetTag(key)}
-                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
-                    border: `1px solid ${s.tag === key ? tag.color : 'var(--border)'}`, color: s.tag === key ? tag.color : 'var(--text-dim)' }}>
-                  {t(`city.tag.${key}`)}
-                </div>
-              ))}
+            <PickerField value={s.tag ? t(`city.tag.${s.tag}`) : ''} placeholder={t('city.tagPlaceholder')} onClick={() => setOpenPicker('tag')} />
+            <PickerField value={s.duration ? durationLabel(s.duration, t) : ''} placeholder={t('city.durationPlaceholder')} onClick={() => setOpenPicker('duration')} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <PickerField value={s.day ? dayLabel(s.day) : ''} placeholder={t('city.dayPlaceholder')} onClick={() => setOpenPicker('day')} />
+              </div>
+              <TimeField value={s.hour || ''} onChange={onSetHour} />
             </div>
-            <textarea className="field" style={{ resize: 'none' }} rows={2} placeholder={t('trip.notesPlaceholder')} defaultValue={s.note || ''}
-              onBlur={(e) => { if (e.target.value !== (s.note || '')) onSetNote(e.target.value); }} />
+            <div><NoteButton value={s.note || ''} onClick={() => setOpenPicker('note')} /></div>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -306,11 +408,11 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
             {s.nameEn && <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>{s.nameEn}</div>}
           </div>
         )}
-        {s.note && <div style={{ font: "400 13px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{s.note}</div>}
+        {!editing && s.note && <div style={{ font: "400 13px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{s.note}</div>}
         <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {s.duration && <span className="pill">{durationLabel(s.duration, t)}</span>}
+          {!editing && s.duration && <span className="pill">{durationLabel(s.duration, t)}</span>}
           {!editing && <span className="pill" style={{ border: `1px solid ${TAGS[s.tag]?.color}`, background: 'transparent', color: TAGS[s.tag]?.color }}>{tagLabel(s.tag, t)}</span>}
-          {(s.day || s.hour) && <span dir="ltr" className="pill" style={{ border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
+          {!editing && (s.day || s.hour) && <span dir="ltr" className="pill" style={{ border: '1px solid var(--border)', background: 'transparent' }}>{[s.day && dayLabel(s.day), s.hour].filter(Boolean).join(' · ')}</span>}
           <a href={navigationUrl(s, city.nameEn)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
             className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', textDecoration: 'none' }}>
             <NavigationIcon /> {t('city.navigate')}
@@ -326,16 +428,19 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
           {editing && s.lat && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onPlaceOnMap}>{t('city.updateLocation')}</span>}
           {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onRemove}>{t('city.remove')}</span>}
         </div>
-        {editing && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 10 }}>
-            <div onClick={() => onSetDay('')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${!s.day ? 'var(--accent)' : 'var(--border)'}`, color: !s.day ? 'var(--accent)' : 'var(--text-dim)' }}>{t('city.noDay')}</div>
-            {days.map((d) => (
-              <div key={d} onClick={() => onSetDay(d)} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer', border: `1px solid ${s.day === d ? 'var(--accent)' : 'var(--border)'}`, color: s.day === d ? 'var(--accent)' : 'var(--text-dim)' }}>{dayLabel(d)}</div>
-            ))}
-            <TimeField value={s.hour || ''} onChange={onSetHour} />
-          </div>
-        )}
       </div>
+      <PickerDrawer open={openPicker === 'tag'} onClose={() => setOpenPicker(null)} title={t('city.pickTag')}>
+        <TagPicker value={s.tag} onSelect={(tag) => { onSetTag(tag); setOpenPicker(null); }} />
+      </PickerDrawer>
+      <PickerDrawer open={openPicker === 'duration'} onClose={() => setOpenPicker(null)} title={t('city.pickDuration')}>
+        <DurationPicker value={s.duration} onSelect={(duration) => { onSetDuration(duration); setOpenPicker(null); }} />
+      </PickerDrawer>
+      <PickerDrawer open={openPicker === 'day'} onClose={() => setOpenPicker(null)} title={t('city.pickDay')}>
+        <DayPicker value={s.day} days={days} onSelect={(day) => { onSetDay(day); setOpenPicker(null); }} />
+      </PickerDrawer>
+      <PickerDrawer open={openPicker === 'note'} onClose={() => setOpenPicker(null)} title={t('city.editNote')}>
+        <NoteEditor value={s.note || ''} onSave={onSetNote} onClose={() => setOpenPicker(null)} />
+      </PickerDrawer>
     </Reorder.Item>
   );
 }
