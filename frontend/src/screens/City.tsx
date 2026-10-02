@@ -17,6 +17,7 @@ export const TAGS: Record<string, { color: string }> = {
   attraction: { color: '#6FA8DC' },
   food: { color: '#C77DBB' },
   nature: { color: '#3F8F6F' },
+  shopping: { color: '#9B7EDE' },
 };
 const DURATION_KEYS = ['hour', 'half-day', 'full-day'] as const;
 const DURATION_KEY_SET: Set<string> = new Set(DURATION_KEYS);
