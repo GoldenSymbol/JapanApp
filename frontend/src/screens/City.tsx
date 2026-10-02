@@ -95,7 +95,7 @@ function PickerDrawer({ open, onClose, title, children }: { open: boolean; onClo
 function TagPicker({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
   const { t } = useLanguage();
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignContent: 'flex-start', minHeight: '45vh' }}>
       {Object.entries(TAGS).map(([key, tag]) => (
         <div key={key} onClick={() => onSelect(key)}
           style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
@@ -109,7 +109,7 @@ function TagPicker({ value, onSelect }: { value: string; onSelect: (v: string) =
 function DurationPicker({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
   const { t } = useLanguage();
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignContent: 'flex-start', minHeight: '45vh' }}>
       {DURATION_KEYS.map((d) => (
         <div key={d} onClick={() => onSelect(d)}
           style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
@@ -123,7 +123,7 @@ function DurationPicker({ value, onSelect }: { value: string; onSelect: (v: stri
 function DayPicker({ value, days, onSelect }: { value: string; days: string[]; onSelect: (v: string) => void }) {
   const { t } = useLanguage();
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignContent: 'flex-start', minHeight: '45vh' }}>
       <div onClick={() => onSelect('')}
         style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, cursor: 'pointer',
           border: `1.5px solid ${!value ? 'var(--accent)' : 'var(--border)'}`, color: !value ? 'var(--accent)' : 'var(--text)' }}>
