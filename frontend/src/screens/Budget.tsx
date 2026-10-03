@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
+import { useAuth } from '../state/AuthContext';
 import { EditIcon, CheckIcon, HistoryIcon } from '../components/Icons';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
@@ -170,8 +171,9 @@ interface HistoryEntry {
 
 // The newest-first list of every add/subtract. Fetched each time it's opened rather than cached, so
 // it can't show a stale list after expenses were entered since the last visit.
-function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: string; cur: string; showWho: boolean }) {
+function HistoryList({ basePath, sym, cur }: { basePath: string; sym: string; cur: string }) {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
   const { tripMeta } = useTripData();
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -194,7 +196,10 @@ function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: s
     <div>
       <div className="section-label" style={{ padding: '20px 0 6px' }}>{t('budget.history')}</div>
       {(expanded ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT)).map((e) => {
-        const member = showWho && e.userId ? tripMeta?.members.find((m) => m.id === e.userId) : undefined;
+        // Every entry in a personal budget is the owner's, including ones from before authors were
+        // recorded; in the shared budget an entry with no recorded author stays unattributed.
+        const authorId = e.userId ?? (basePath === '/budget' ? null : user?.id ?? null);
+        const member = authorId ? tripMeta?.members.find((m) => m.id === authorId) : undefined;
         const when = new Date(e.createdAtMs).toLocaleString(lang === 'en' ? 'en-GB' : 'he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
         const foreign = e.originalCurrency && e.originalCurrency !== cur && e.originalAmount !== null;
         return (
@@ -383,7 +388,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
       </div>
 
       {showHistory ? (
-        <HistoryList basePath={basePath} sym={sym} cur={cur} showWho={basePath === '/budget'} />
+        <HistoryList basePath={basePath} sym={sym} cur={cur} />
       ) : (
       <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 10px' }}>
