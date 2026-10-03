@@ -113,6 +113,16 @@ export function CheckIcon() {
   );
 }
 
+export function HistoryIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+      <polyline points="3 4 3 9 8 9"></polyline>
+      <polyline points="12 7 12 12 15 14"></polyline>
+    </svg>
+  );
+}
+
 export function TrashIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

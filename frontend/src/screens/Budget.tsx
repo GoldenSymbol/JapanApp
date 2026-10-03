@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
-import { EditIcon, CheckIcon } from '../components/Icons';
+import { EditIcon, CheckIcon, HistoryIcon } from '../components/Icons';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
 const CURRENCY_SYMBOLS: Record<string, string> = { ILS: '₪', JPY: '¥', USD: '$', EUR: '€' };
@@ -159,6 +159,59 @@ function BudgetPieView({ data }: { data: any }) {
   );
 }
 
+interface HistoryEntry {
+  id: string; categoryName: string; amount: number;
+  originalAmount: number | null; originalCurrency: string | null;
+  userId: string | null; createdAtMs: number;
+}
+
+// The newest-first list of every add/subtract. Fetched each time it's opened rather than cached, so
+// it can't show a stale list after expenses were entered since the last visit.
+function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: string; cur: string; showWho: boolean }) {
+  const { t, lang } = useLanguage();
+  const { tripMeta } = useTripData();
+  const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api(`${basePath}/transactions`)
+      .then((d) => { if (!cancelled) setEntries(d.transactions); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [basePath]);
+
+  const dim = { font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 3 } as const;
+  if (failed) return <div style={{ ...dim, padding: '30px 0', textAlign: 'center' }}>{t('budget.historyError')}</div>;
+  if (!entries) return <div style={{ ...dim, padding: '30px 0', textAlign: 'center' }}>{t('budget.historyLoading')}</div>;
+  if (entries.length === 0) return <div style={{ ...dim, padding: '30px 0', textAlign: 'center', fontSize: 13 }}>{t('budget.historyEmpty')}</div>;
+
+  return (
+    <div>
+      <div className="section-label" style={{ padding: '20px 0 6px' }}>{t('budget.history')}</div>
+      {entries.map((e) => {
+        const who = showWho && e.userId ? tripMeta?.members.find((m) => m.id === e.userId)?.name : null;
+        const when = new Date(e.createdAtMs).toLocaleString(lang === 'en' ? 'en-GB' : 'he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const foreign = e.originalCurrency && e.originalCurrency !== cur && e.originalAmount !== null;
+        return (
+          <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '13px 0', borderTop: '1px solid var(--border-soft)' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif" }}>{e.categoryName}</div>
+              <div style={dim}>{[when, who].filter(Boolean).join(' · ')}</div>
+            </div>
+            <div style={{ flex: 'none', textAlign: 'end' }}>
+              <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif", color: e.amount < 0 ? 'var(--accent)' : 'var(--text)' }}>
+                <span dir="ltr">{e.amount < 0 ? '−' : '+'}{sym}{fmtAmount(Math.abs(e.amount))}</span>
+              </div>
+              {foreign && <div dir="ltr" style={dim}>{CURRENCY_SYMBOLS[e.originalCurrency!]}{fmtAmount(Math.abs(e.originalAmount!))}</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Shared UI for both the group budget (basePath="/budget") and each member's own private
 // personal budget (basePath="/budget/personal") — same shape of data, same interactions. Reads
 // its snapshot from TripDataContext (prefetched once alongside the rest of the trip's data)
@@ -170,6 +223,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
 }) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
   // Mirrors addVals so applyTx can read and clear an amount synchronously: two taps landing before
   // React re-renders would otherwise both see the same filled input and record it twice.
@@ -270,9 +324,15 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
           <div style={{ font: "600 20px/1.2 'Noto Sans Hebrew',sans-serif" }}>{title}</div>
           {subtitle && <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{subtitle}</div>}
         </div>
-        <div className="icon-btn" onClick={() => setEditing((v) => !v)} aria-label={editing ? t('common.done') : t('common.edit')}
-          style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
-          {editing ? <CheckIcon /> : <EditIcon />}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div className="icon-btn" onClick={() => { setShowHistory((v) => !v); setEditing(false); }} aria-label={t('budget.history')}
+            style={{ border: `1px solid ${showHistory ? 'var(--accent)' : 'var(--border)'}`, color: showHistory ? 'var(--accent)' : 'var(--text-dim)' }}>
+            <HistoryIcon />
+          </div>
+          <div className="icon-btn" onClick={() => { setEditing((v) => !v); setShowHistory(false); }} aria-label={editing ? t('common.done') : t('common.edit')}
+            style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
+            {editing ? <CheckIcon /> : <EditIcon />}
+          </div>
         </div>
       </div>
 
@@ -304,6 +364,10 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
         )}
       </div>
 
+      {showHistory ? (
+        <HistoryList basePath={basePath} sym={sym} cur={cur} showWho={basePath === '/budget'} />
+      ) : (
+      <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 10px' }}>
         <div className="section-label" style={{ padding: 0 }}>{t('budget.byCategory')}</div>
         {allowChart && !editing && data.categories.length > 0 && (
@@ -415,6 +479,8 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
           {t('budget.addCategory')}
         </div>
       )}
+      </>
+      )}
     </div>
   );
 }
@@ -441,9 +507,9 @@ export function Budget() {
       </div>
 
       {mode === 'general' ? (
-        <BudgetSection basePath="/budget" data={budget} refreshData={refreshBudget} setData={setBudgetSnapshot} title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
+        <BudgetSection key="general" basePath="/budget" data={budget} refreshData={refreshBudget} setData={setBudgetSnapshot} title={t('budget.generalTitle')} subtitle={t('budget.generalSubtitle')} newCategoryLabel={t('budget.newCategoryGeneral')} allowChart />
       ) : (
-        <BudgetSection basePath="/budget/personal" data={personalBudget} refreshData={refreshPersonalBudget} setData={setPersonalBudgetSnapshot} title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
+        <BudgetSection key="personal" basePath="/budget/personal" data={personalBudget} refreshData={refreshPersonalBudget} setData={setPersonalBudgetSnapshot} title={t('budget.personalTitle')} newCategoryLabel={t('budget.newCategoryPersonal')} allowChart />
       )}
 
       <Converter />

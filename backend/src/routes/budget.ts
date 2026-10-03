@@ -37,7 +37,7 @@ function roundIn(amount: number, currency: string) {
 // other than the budget's is converted once, now, at the current rate, and that rate is stored on
 // the transaction so the total never drifts when rates move later. `amount` (in the budget's
 // currency) is the only field the totals read; the original* fields are kept for history.
-async function buildTransaction(categoryId: string, body: any, budgetCurrency: string) {
+async function buildTransaction(categoryId: string, body: any, budgetCurrency: string, userId: string) {
   const raw = Math.abs(Number(body?.amount));
   if (!Number.isFinite(raw) || raw <= 0) return null;
   const currency = SUPPORTED_CURRENCIES.includes(body?.currency) ? body.currency : budgetCurrency;
@@ -60,6 +60,7 @@ async function buildTransaction(categoryId: string, body: any, budgetCurrency: s
       originalCurrency: currency,
       rate,
       note: body?.note || null,
+      userId,
       createdAtMs: Date.now(),
     },
     conversion: currency === budgetCurrency ? null : {
@@ -67,6 +68,26 @@ async function buildTransaction(categoryId: string, body: any, budgetCurrency: s
       amount: sign * converted, currency: budgetCurrency, rateLive,
     },
   };
+}
+
+// Newest first, capped, and only entries whose category still exists (deleting a category leaves its
+// old transactions behind, which would otherwise show up here without a name). Older entries
+// predate the original*/userId fields and simply come back with those as null.
+function historyOf(txs: any[], cats: any[]) {
+  const names = new Map<string, string>(cats.map((c) => [c.id, c.name]));
+  return txs
+    .filter((t) => names.has(t.categoryId))
+    .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0))
+    .slice(0, 200)
+    .map((t) => ({
+      id: t.id,
+      categoryName: names.get(t.categoryId)!,
+      amount: t.amount,
+      originalAmount: t.originalAmount ?? null,
+      originalCurrency: t.originalCurrency ?? null,
+      userId: t.userId ?? null,
+      createdAtMs: t.createdAtMs || 0,
+    }));
 }
 
 async function fetchBudgetCategories(tripId: string) {
@@ -102,6 +123,13 @@ budgetRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
   res.json(await budgetSnapshot(trip.id, trip.budget_total));
+});
+
+budgetRouter.get("/transactions", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const [cats, txs] = await Promise.all([fetchBudgetCategories(trip.id), fetchBudgetTransactions(trip.id)]);
+  res.json({ transactions: historyOf(txs, cats) });
 });
 
 budgetRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
@@ -159,7 +187,7 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
   const catDoc = await tripRef(trip.id).collection("budgetCategories").doc(catId).get();
   if (!catDoc.exists) return res.status(404).json({ error: "not_found" });
   const cat = catDoc.data()!;
-  const tx = await buildTransaction(catId, req.body, GENERAL_CURRENCY);
+  const tx = await buildTransaction(catId, req.body, GENERAL_CURRENCY, req.userId!);
   if (!tx) return res.status(400).json({ error: "invalid_input" });
   const writeTx = tripRef(trip.id).collection("budgetTransactions").doc(randomUUID()).set(tx.doc);
   if (tx.signed > 0) {
@@ -238,6 +266,13 @@ budgetRouter.get("/personal", requireAuth, async (req: AuthedRequest, res) => {
   res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
+budgetRouter.get("/personal/transactions", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const [cats, txs] = await Promise.all([fetchPersonalCategories(trip.id, req.userId!), fetchPersonalTransactions(trip.id)]);
+  res.json({ transactions: historyOf(txs, cats) });
+});
+
 budgetRouter.patch("/personal", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
@@ -296,7 +331,7 @@ budgetRouter.post("/personal/categories/:id/transactions", requireAuth, async (r
   if (!catDoc.exists || catDoc.data()!.userId !== req.userId) return res.status(404).json({ error: "not_found" });
   const pbDoc = await tripRef(trip.id).collection("personalBudgets").doc(req.userId!).get();
   const currency = await personalCurrency(trip.id, req.userId!, pbDoc);
-  const tx = await buildTransaction(catId, req.body, currency);
+  const tx = await buildTransaction(catId, req.body, currency, req.userId!);
   if (!tx) return res.status(400).json({ error: "invalid_input" });
   await tripRef(trip.id).collection("personalBudgetTransactions").doc(randomUUID()).set(tx.doc);
   res.json({ ...(await personalSnapshot(trip.id, req.userId!)), conversion: tx.conversion });
