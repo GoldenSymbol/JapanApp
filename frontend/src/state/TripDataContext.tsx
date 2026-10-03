@@ -30,7 +30,8 @@ export interface TripMeta {
 }
 
 export interface BudgetCategory { id: string; name: string; planned: number; spent: number; note: string | null; percent: number; }
-export interface BudgetSnapshot { total: number; paid: number; categories: BudgetCategory[]; }
+// currency is missing on snapshots cached offline before multi-currency existed; those were all shekels.
+export interface BudgetSnapshot { total: number; paid: number; currency?: string; categories: BudgetCategory[]; }
 
 export interface DocumentFolder { id: string; name: string; colorKey: string; fileCount: number; }
 

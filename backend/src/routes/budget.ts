@@ -4,6 +4,7 @@ import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
 import { getUsdRates, convert } from "../fx.js";
+import { getUserDoc } from "../users.js";
 
 export const budgetRouter = Router();
 
@@ -18,6 +19,54 @@ async function requireTrip(req: AuthedRequest, res: any): Promise<any> {
     return null;
   }
   return trip;
+}
+
+const SUPPORTED_CURRENCIES = ["ILS", "JPY", "USD", "EUR"];
+// The shared budget is one currency for the whole group. Every stored amount is already in it.
+const GENERAL_CURRENCY = "ILS";
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+// Yen has no minor unit; everything else is kept to the cent.
+function roundIn(amount: number, currency: string) {
+  return currency === "JPY" ? Math.round(amount) : round2(amount);
+}
+
+// Turns a submitted expense into the document to store plus what to tell the client. A currency
+// other than the budget's is converted once, now, at the current rate, and that rate is stored on
+// the transaction so the total never drifts when rates move later. `amount` (in the budget's
+// currency) is the only field the totals read; the original* fields are kept for history.
+async function buildTransaction(categoryId: string, body: any, budgetCurrency: string) {
+  const raw = Math.abs(Number(body?.amount));
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+  const currency = SUPPORTED_CURRENCIES.includes(body?.currency) ? body.currency : budgetCurrency;
+  const sign = body?.direction === "subtract" ? -1 : 1;
+  let converted = raw;
+  let rate = 1;
+  let rateLive = true;
+  if (currency !== budgetCurrency) {
+    const fx = await getUsdRates();
+    rate = (fx.rates[budgetCurrency] ?? 1) / (fx.rates[currency] ?? 1);
+    converted = roundIn(raw * rate, budgetCurrency);
+    rateLive = fx.live;
+  }
+  return {
+    signed: sign * converted,
+    doc: {
+      categoryId,
+      amount: sign * converted,
+      originalAmount: sign * raw,
+      originalCurrency: currency,
+      rate,
+      note: body?.note || null,
+      createdAtMs: Date.now(),
+    },
+    conversion: currency === budgetCurrency ? null : {
+      originalAmount: sign * raw, originalCurrency: currency,
+      amount: sign * converted, currency: budgetCurrency, rateLive,
+    },
+  };
 }
 
 async function fetchBudgetCategories(tripId: string) {
@@ -35,7 +84,7 @@ async function budgetSnapshot(tripId: string, budgetTotal: number) {
   const spentByCategory = new Map<string, number>();
   for (const t of txs) spentByCategory.set(t.categoryId, (spentByCategory.get(t.categoryId) || 0) + t.amount);
   const categories = cats.map((c) => {
-    const spent = spentByCategory.get(c.id) || 0;
+    const spent = round2(spentByCategory.get(c.id) || 0);
     return {
       id: c.id,
       name: c.name,
@@ -45,8 +94,8 @@ async function budgetSnapshot(tripId: string, budgetTotal: number) {
       percent: c.plannedAmount > 0 ? Math.min(999, Math.round((spent / c.plannedAmount) * 100)) : 0,
     };
   });
-  const paid = categories.reduce((s, c) => s + c.spent, 0);
-  return { total: budgetTotal, paid, categories };
+  const paid = round2(categories.reduce((s, c) => s + c.spent, 0));
+  return { total: budgetTotal, paid, currency: GENERAL_CURRENCY, categories };
 }
 
 budgetRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
@@ -110,15 +159,10 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
   const catDoc = await tripRef(trip.id).collection("budgetCategories").doc(catId).get();
   if (!catDoc.exists) return res.status(404).json({ error: "not_found" });
   const cat = catDoc.data()!;
-  let amount = Number(req.body?.amount || 0);
-  amount = req.body?.direction === "subtract" ? -Math.abs(amount) : Math.abs(amount);
-  const writeTx = tripRef(trip.id).collection("budgetTransactions").doc(randomUUID()).set({
-    categoryId: catId,
-    amount,
-    note: req.body?.note || null,
-    createdAtMs: Date.now(),
-  });
-  if (amount > 0) {
+  const tx = await buildTransaction(catId, req.body, GENERAL_CURRENCY);
+  if (!tx) return res.status(400).json({ error: "invalid_input" });
+  const writeTx = tripRef(trip.id).collection("budgetTransactions").doc(randomUUID()).set(tx.doc);
+  if (tx.signed > 0) {
     await Promise.all([
       writeTx,
       createNotification({
@@ -126,14 +170,14 @@ budgetRouter.post("/categories/:id/transactions", requireAuth, async (req: Authe
         actorUserId: req.userId!,
         type: "new_expense",
         titleKey: "notif.newExpense",
-        titleParams: { category: cat.name, amount: Math.round(amount) },
+        titleParams: { category: cat.name, amount: Math.round(tx.signed) },
         targetScreen: "budget",
       }),
     ]);
   } else {
     await writeTx;
   }
-  res.json(await budgetSnapshot(trip.id, trip.budget_total));
+  res.json({ ...(await budgetSnapshot(trip.id, trip.budget_total)), conversion: tx.conversion });
 });
 
 // Personal budgets: fully separate per-member spending, private to each member. Categories/
@@ -149,6 +193,18 @@ async function fetchPersonalTransactions(tripId: string) {
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
 }
 
+// A personal budget's currency is the owner's currency setting, read once and then stored on the
+// budget itself. Pinning it matters: the amounts already recorded are in that currency, so a later
+// change in Settings must not silently relabel them.
+async function personalCurrency(tripId: string, userId: string, pbDoc: any): Promise<string> {
+  const stored = pbDoc.exists ? pbDoc.data()!.currency : null;
+  if (SUPPORTED_CURRENCIES.includes(stored)) return stored;
+  const user = await getUserDoc(userId);
+  const currency = SUPPORTED_CURRENCIES.includes(user?.baseCurrency) ? user!.baseCurrency : "ILS";
+  await tripRef(tripId).collection("personalBudgets").doc(userId).set({ currency }, { merge: true });
+  return currency;
+}
+
 async function personalSnapshot(tripId: string, userId: string) {
   const [pbDoc, cats, allTxs] = await Promise.all([
     tripRef(tripId).collection("personalBudgets").doc(userId).get(),
@@ -161,7 +217,7 @@ async function personalSnapshot(tripId: string, userId: string) {
     if (catIds.has(t.categoryId)) spentByCategory.set(t.categoryId, (spentByCategory.get(t.categoryId) || 0) + t.amount);
   }
   const categories = cats.map((c) => {
-    const spent = spentByCategory.get(c.id) || 0;
+    const spent = round2(spentByCategory.get(c.id) || 0);
     return {
       id: c.id,
       name: c.name,
@@ -171,8 +227,9 @@ async function personalSnapshot(tripId: string, userId: string) {
       percent: c.plannedAmount > 0 ? Math.min(999, Math.round((spent / c.plannedAmount) * 100)) : 0,
     };
   });
-  const paid = categories.reduce((s, c) => s + c.spent, 0);
-  return { total: pbDoc.exists ? pbDoc.data()!.plannedTotal || 0 : 0, paid, categories };
+  const paid = round2(categories.reduce((s, c) => s + c.spent, 0));
+  const currency = await personalCurrency(tripId, userId, pbDoc);
+  return { total: pbDoc.exists ? pbDoc.data()!.plannedTotal || 0 : 0, paid, currency, categories };
 }
 
 budgetRouter.get("/personal", requireAuth, async (req: AuthedRequest, res) => {
@@ -237,15 +294,12 @@ budgetRouter.post("/personal/categories/:id/transactions", requireAuth, async (r
   const catId = String(req.params.id);
   const catDoc = await tripRef(trip.id).collection("personalBudgetCategories").doc(catId).get();
   if (!catDoc.exists || catDoc.data()!.userId !== req.userId) return res.status(404).json({ error: "not_found" });
-  let amount = Number(req.body?.amount || 0);
-  amount = req.body?.direction === "subtract" ? -Math.abs(amount) : Math.abs(amount);
-  await tripRef(trip.id).collection("personalBudgetTransactions").doc(randomUUID()).set({
-    categoryId: catId,
-    amount,
-    note: req.body?.note || null,
-    createdAtMs: Date.now(),
-  });
-  res.json(await personalSnapshot(trip.id, req.userId!));
+  const pbDoc = await tripRef(trip.id).collection("personalBudgets").doc(req.userId!).get();
+  const currency = await personalCurrency(trip.id, req.userId!, pbDoc);
+  const tx = await buildTransaction(catId, req.body, currency);
+  if (!tx) return res.status(400).json({ error: "invalid_input" });
+  await tripRef(trip.id).collection("personalBudgetTransactions").doc(randomUUID()).set(tx.doc);
+  res.json({ ...(await personalSnapshot(trip.id, req.userId!)), conversion: tx.conversion });
 });
 
 budgetRouter.get("/fx-rates", requireAuth, async (_req, res) => {
