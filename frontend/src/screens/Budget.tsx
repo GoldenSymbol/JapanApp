@@ -193,9 +193,13 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
   const txSeq = useRef(0);
   const cur = data?.currency || 'ILS';
   const sym = CURRENCY_SYMBOLS[cur];
-  const [txCurrencyPref, setTxCurrencyPref] = useState<string | null>(readSavedTxCurrency);
-  const txCurrency = txCurrencyPref ?? cur;
-  // Which category's currency dropdown is open (the choice itself is shared by the whole section).
+  // Each category row keeps its own currency choice, so changing one never moves the others. A row
+  // nobody has touched starts from the last currency used in a previous visit (read once, so
+  // picking one here doesn't also change the rows below it), else the budget's own currency.
+  const [startCurrency] = useState<string | null>(readSavedTxCurrency);
+  const [rowCurrencies, setRowCurrencies] = useState<Record<string, string>>({});
+  const txCurrencyFor = (id: string) => rowCurrencies[id] ?? startCurrency ?? cur;
+  // Which category's currency dropdown is open.
   const [currencyMenuId, setCurrencyMenuId] = useState<string | null>(null);
   const [fx, setFx] = useState<{ rates: Record<string, number>; live: boolean } | null>(null);
   const [notice, setNotice] = useState<{ id: string; text: string } | null>(null);
@@ -208,8 +212,8 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
     api('/budget/fx-rates').then((d) => setFx({ rates: d.rates, live: d.live })).catch(() => {});
   }, [editing, fx]);
 
-  function pickTxCurrency(c: string) {
-    setTxCurrencyPref(c);
+  function pickTxCurrency(id: string, c: string) {
+    setRowCurrencies((r) => ({ ...r, [id]: c }));
     try { localStorage.setItem(TX_CURRENCY_KEY, c); } catch { /* remembering the choice is a convenience only */ }
     setCurrencyMenuId(null);
   }
@@ -223,6 +227,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
   async function applyTx(id: string, direction: 'add' | 'subtract') {
     const amount = parseFloat(addValsRef.current[id] || '0');
     if (!amount || !data) return;
+    const txCurrency = txCurrencyFor(id);
     const converted = toBudgetCurrency(amount, txCurrency);
     setAdd(id, '');
     // With no rate to estimate from yet, skip the instant update; the server's answer still lands.
@@ -319,6 +324,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
       <AnimatePresence initial={false}>
       {data.categories.map((c: any) => {
         const pct = data.total > 0 ? Math.min(100, Math.round((c.spent / data.total) * 100)) : 0;
+        const rowCur = txCurrencyFor(c.id);
         return (
           <motion.div key={c.id} layout
             initial={{ opacity: 0, y: 10 }}
@@ -354,7 +360,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
                   <div onClick={() => setCurrencyMenuId(currencyMenuId === c.id ? null : c.id)} aria-label={t('budget.pickCurrency')}
                     style={{ cursor: 'pointer', padding: '9px 14px', borderRadius: 999, fontSize: 14, fontWeight: 600,
                       border: '1px solid var(--accent)', color: 'var(--accent)' }}>
-                    {CURRENCY_SYMBOLS[txCurrency]}
+                    {CURRENCY_SYMBOLS[rowCur]}
                   </div>
                   {currencyMenuId === c.id && (
                     <>
@@ -362,10 +368,10 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
                       <div style={{ position: 'absolute', top: 'calc(100% + 6px)', insetInlineStart: 0, zIndex: 31, minWidth: 150, maxHeight: 220, overflowY: 'auto',
                         background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}>
                         {CURRENCY_KEYS.map((k) => (
-                          <div key={k} onClick={() => pickTxCurrency(k)}
+                          <div key={k} onClick={() => pickTxCurrency(c.id, k)}
                             style={{ padding: '10px 12px', borderRadius: 10, fontSize: 13.5, cursor: 'pointer', whiteSpace: 'nowrap',
-                              fontWeight: txCurrency === k ? 600 : 500, color: txCurrency === k ? 'var(--accent)' : 'var(--text)',
-                              background: txCurrency === k ? 'var(--card-soft)' : 'transparent' }}>
+                              fontWeight: rowCur === k ? 600 : 500, color: rowCur === k ? 'var(--accent)' : 'var(--text)',
+                              background: rowCur === k ? 'var(--card-soft)' : 'transparent' }}>
                             {t(`currency.${k}`)}
                           </div>
                         ))}
@@ -382,14 +388,14 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
             )}
             {editing && (() => {
               const typed = parseFloat(addVals[c.id] || '');
-              const converted = typed ? toBudgetCurrency(typed, txCurrency) : null;
-              const foreign = txCurrency !== cur;
+              const converted = typed ? toBudgetCurrency(typed, rowCur) : null;
+              const foreign = rowCur !== cur;
               return (
                 <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 6 }}>
                   {notice && notice.id === c.id && !typed
                     ? notice.text
                     : typed && converted !== null
-                      ? (foreign ? `${CURRENCY_SYMBOLS[txCurrency]}${fmtAmount(typed)} ≈ ${sym}${fmtAmount(converted)} · ` : '') + t('budget.categoryMath', {
+                      ? (foreign ? `${CURRENCY_SYMBOLS[rowCur]}${fmtAmount(typed)} ≈ ${sym}${fmtAmount(converted)} · ` : '') + t('budget.categoryMath', {
                           spent: fmtAmount(c.spent),
                           add: fmtAmount(converted),
                           sum: fmtAmount(c.spent + converted),
