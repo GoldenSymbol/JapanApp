@@ -190,14 +190,22 @@ function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: s
     <div>
       <div className="section-label" style={{ padding: '20px 0 6px' }}>{t('budget.history')}</div>
       {entries.map((e) => {
-        const who = showWho && e.userId ? tripMeta?.members.find((m) => m.id === e.userId)?.name : null;
+        const member = showWho && e.userId ? tripMeta?.members.find((m) => m.id === e.userId) : undefined;
         const when = new Date(e.createdAtMs).toLocaleString(lang === 'en' ? 'en-GB' : 'he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
         const foreign = e.originalCurrency && e.originalCurrency !== cur && e.originalAmount !== null;
         return (
           <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '13px 0', borderTop: '1px solid var(--border-soft)' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif" }}>{e.categoryName}</div>
-              <div style={dim}>{[when, who].filter(Boolean).join(' · ')}</div>
+              <div style={{ ...dim, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {member && (
+                  <span style={{ width: 16, height: 16, flex: 'none', borderRadius: '50%', background: member.avatarColor, color: '#14161A',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: "600 9px 'Noto Sans Hebrew',sans-serif" }}>
+                    {member.name.charAt(0)}
+                  </span>
+                )}
+                <span>{[member?.name, when].filter(Boolean).join(' · ')}</span>
+              </div>
             </div>
             <div style={{ flex: 'none', textAlign: 'end' }}>
               <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif", color: e.amount < 0 ? 'var(--accent)' : 'var(--text)' }}>
