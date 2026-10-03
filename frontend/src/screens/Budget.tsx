@@ -159,6 +159,9 @@ function BudgetPieView({ data }: { data: any }) {
   );
 }
 
+// How many of the newest entries show before "show more".
+const HISTORY_PREVIEW_COUNT = 3;
+
 interface HistoryEntry {
   id: string; categoryName: string; amount: number;
   originalAmount: number | null; originalCurrency: string | null;
@@ -172,6 +175,7 @@ function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: s
   const { tripMeta } = useTripData();
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +193,7 @@ function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: s
   return (
     <div>
       <div className="section-label" style={{ padding: '20px 0 6px' }}>{t('budget.history')}</div>
-      {entries.map((e) => {
+      {(expanded ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT)).map((e) => {
         const member = showWho && e.userId ? tripMeta?.members.find((m) => m.id === e.userId) : undefined;
         const when = new Date(e.createdAtMs).toLocaleString(lang === 'en' ? 'en-GB' : 'he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
         const foreign = e.originalCurrency && e.originalCurrency !== cur && e.originalAmount !== null;
@@ -216,6 +220,12 @@ function HistoryList({ basePath, sym, cur, showWho }: { basePath: string; sym: s
           </div>
         );
       })}
+      {entries.length > HISTORY_PREVIEW_COUNT && (
+        <div onClick={() => setExpanded((v) => !v)}
+          style={{ padding: '14px 0 4px', textAlign: 'center', font: "600 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', cursor: 'pointer', borderTop: '1px solid var(--border-soft)' }}>
+          {expanded ? t('budget.historyLess') : t('budget.historyMore', { count: entries.length - HISTORY_PREVIEW_COUNT })}
+        </div>
+      )}
     </div>
   );
 }
