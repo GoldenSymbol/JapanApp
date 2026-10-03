@@ -4,7 +4,6 @@ import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
 import { EditIcon, CheckIcon } from '../components/Icons';
-import { Drawer } from '../components/Drawer';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
 const CURRENCY_SYMBOLS: Record<string, string> = { ILS: '₪', JPY: '¥', USD: '$', EUR: '€' };
@@ -196,7 +195,8 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
   const sym = CURRENCY_SYMBOLS[cur];
   const [txCurrencyPref, setTxCurrencyPref] = useState<string | null>(readSavedTxCurrency);
   const txCurrency = txCurrencyPref ?? cur;
-  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  // Which category's currency dropdown is open (the choice itself is shared by the whole section).
+  const [currencyMenuId, setCurrencyMenuId] = useState<string | null>(null);
   const [fx, setFx] = useState<{ rates: Record<string, number>; live: boolean } | null>(null);
   const [notice, setNotice] = useState<{ id: string; text: string } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,7 +211,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
   function pickTxCurrency(c: string) {
     setTxCurrencyPref(c);
     try { localStorage.setItem(TX_CURRENCY_KEY, c); } catch { /* remembering the choice is a convenience only */ }
-    setCurrencyPickerOpen(false);
+    setCurrencyMenuId(null);
   }
   // Same arithmetic and rounding as the server; null while rates haven't loaded.
   function toBudgetCurrency(amount: number, from: string): number | null {
@@ -350,11 +350,29 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
             )}
             {editing && (
               <div style={{ marginTop: 10, display: 'flex', gap: 7, alignItems: 'center' }}>
-                <div onClick={() => setCurrencyPickerOpen(true)} aria-label={t('budget.pickCurrency')}
-                  style={{ flex: 'none', cursor: 'pointer', padding: '9px 11px', borderRadius: 999, fontSize: 14, fontWeight: 600,
-                    border: `1px solid ${txCurrency === cur ? 'var(--border)' : 'var(--accent)'}`,
-                    color: txCurrency === cur ? 'var(--text)' : 'var(--accent)' }}>
-                  {CURRENCY_SYMBOLS[txCurrency]} <span style={{ fontSize: 10, color: 'var(--text-dim-2)' }}>⌄</span>
+                <div style={{ position: 'relative', flex: 'none' }}>
+                  <div onClick={() => setCurrencyMenuId(currencyMenuId === c.id ? null : c.id)} aria-label={t('budget.pickCurrency')}
+                    style={{ cursor: 'pointer', padding: '9px 14px', borderRadius: 999, fontSize: 14, fontWeight: 600,
+                      border: `1px solid ${txCurrency === cur ? 'var(--border)' : 'var(--accent)'}`,
+                      color: txCurrency === cur ? 'var(--text)' : 'var(--accent)' }}>
+                    {CURRENCY_SYMBOLS[txCurrency]}
+                  </div>
+                  {currencyMenuId === c.id && (
+                    <>
+                      <div onClick={() => setCurrencyMenuId(null)} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', insetInlineStart: 0, zIndex: 31, minWidth: 150, maxHeight: 220, overflowY: 'auto',
+                        background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}>
+                        {CURRENCY_KEYS.map((k) => (
+                          <div key={k} onClick={() => pickTxCurrency(k)}
+                            style={{ padding: '10px 12px', borderRadius: 10, fontSize: 13.5, cursor: 'pointer', whiteSpace: 'nowrap',
+                              fontWeight: txCurrency === k ? 600 : 500, color: txCurrency === k ? 'var(--accent)' : 'var(--text)',
+                              background: txCurrency === k ? 'var(--card-soft)' : 'transparent' }}>
+                            {t(`currency.${k}`)}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <input className="field" style={{ flex: 1, minWidth: 0, borderStyle: 'dashed' }} placeholder={t('budget.addExpensePlaceholder')} value={addVals[c.id] || ''}
                   onChange={(e) => setAdd(c.id, e.target.value)}
@@ -387,18 +405,6 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
       })}
       </AnimatePresence>
       )}
-      <Drawer open={currencyPickerOpen} onClose={() => setCurrencyPickerOpen(false)}>
-        <div style={{ font: "600 16px/1.3 'Noto Sans Hebrew',sans-serif", marginBottom: 14 }}>{t('budget.pickCurrency')}</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {CURRENCY_KEYS.map((c) => (
-            <div key={c} onClick={() => pickTxCurrency(c)}
-              style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
-                border: `1.5px solid ${txCurrency === c ? 'var(--accent)' : 'var(--border)'}`, color: txCurrency === c ? 'var(--accent)' : 'var(--text)' }}>
-              {t(`currency.${c}`)}
-            </div>
-          ))}
-        </div>
-      </Drawer>
       {editing && (
         <div className="btn btn-ghost" style={{ marginTop: 14, textAlign: 'center', padding: 16, borderStyle: 'dashed', borderRadius: 20 }} onClick={addCategory}>
           {t('budget.addCategory')}
