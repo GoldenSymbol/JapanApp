@@ -353,8 +353,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
                 <div style={{ position: 'relative', flex: 'none' }}>
                   <div onClick={() => setCurrencyMenuId(currencyMenuId === c.id ? null : c.id)} aria-label={t('budget.pickCurrency')}
                     style={{ cursor: 'pointer', padding: '9px 14px', borderRadius: 999, fontSize: 14, fontWeight: 600,
-                      border: `1px solid ${txCurrency === cur ? 'var(--border)' : 'var(--accent)'}`,
-                      color: txCurrency === cur ? 'var(--text)' : 'var(--accent)' }}>
+                      border: '1px solid var(--accent)', color: 'var(--accent)' }}>
                     {CURRENCY_SYMBOLS[txCurrency]}
                   </div>
                   {currencyMenuId === c.id && (
