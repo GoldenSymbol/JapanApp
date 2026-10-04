@@ -231,8 +231,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     'budget.approxRate': 'שער משוער',
     'budget.addTx': 'הוסף',
     'budget.subtractTx': 'הורד',
-    'budget.categoryTotal': 'סה״כ בקטגוריה: {{cur}}{{amount}}',
-    'budget.categoryMath': '{{spent}} + {{add}} = {{sum}} · או {{sub}} אם מורידים',
     'budget.addCategory': '+ הוסף קטגוריה',
 
     // documents
@@ -608,8 +606,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     'budget.approxRate': 'approximate rate',
     'budget.addTx': 'Add',
     'budget.subtractTx': 'Subtract',
-    'budget.categoryTotal': 'Category total: {{cur}}{{amount}}',
-    'budget.categoryMath': '{{spent}} + {{add}} = {{sum}} · or {{sub}} if subtracting',
     'budget.addCategory': '+ Add category',
 
     // documents

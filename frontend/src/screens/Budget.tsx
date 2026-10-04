@@ -474,22 +474,15 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
               </div>
             )}
             {editing && (() => {
+              // Only the conversion is shown: live while typing a foreign amount, then as a short
+              // confirmation after it's added. Same-currency entries show nothing here.
               const typed = parseFloat(addVals[c.id] || '');
-              const converted = typed ? toBudgetCurrency(typed, rowCur) : null;
-              const foreign = rowCur !== cur;
-              return (
-                <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 6 }}>
-                  {notice && notice.id === c.id && !typed
-                    ? notice.text
-                    : typed && converted !== null
-                      ? (foreign ? `${CURRENCY_SYMBOLS[rowCur]}${fmtAmount(typed)} ≈ ${sym}${fmtAmount(converted)} · ` : '') + t('budget.categoryMath', {
-                          spent: fmtAmount(c.spent),
-                          add: fmtAmount(converted),
-                          sum: fmtAmount(c.spent + converted),
-                          sub: fmtAmount(Math.max(0, c.spent - converted)),
-                        })
-                      : t('budget.categoryTotal', { cur: sym, amount: fmtAmount(c.spent) })}
-                </div>
+              const converted = typed && rowCur !== cur ? toBudgetCurrency(typed, rowCur) : null;
+              const text = typed
+                ? (converted !== null ? `${CURRENCY_SYMBOLS[rowCur]}${fmtAmount(typed)} ≈ ${sym}${fmtAmount(converted)}` : null)
+                : (notice && notice.id === c.id ? notice.text : null);
+              return text && (
+                <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 6 }}>{text}</div>
               );
             })()}
           </motion.div>
