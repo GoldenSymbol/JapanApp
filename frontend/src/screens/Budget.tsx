@@ -4,7 +4,7 @@ import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
 import { useAuth } from '../state/AuthContext';
-import { EditIcon, CheckIcon, HistoryIcon } from '../components/Icons';
+import { EditIcon, CheckIcon, HistoryIcon, TrashIcon } from '../components/Icons';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
 const CURRENCY_SYMBOLS: Record<string, string> = { ILS: '₪', JPY: '¥', USD: '$', EUR: '€' };
@@ -179,13 +179,35 @@ interface HistoryEntry {
 
 // The newest-first list of every add/subtract. Fetched each time it's opened rather than cached, so
 // it can't show a stale list after expenses were entered since the last visit.
-function HistoryList({ basePath, sym, cur }: { basePath: string; sym: string; cur: string }) {
+function HistoryList({ basePath, sym, cur, editing, onChanged }: {
+  basePath: string; sym: string; cur: string; editing: boolean; onChanged: (snapshot: BudgetSnapshot) => void;
+}) {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const { tripMeta } = useTripData();
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
+
+  // The server answers a delete with the new totals, so the budget above the list updates too.
+  async function removeEntry(id: string) {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteFailed(false);
+    try {
+      const snapshot = await api(`${basePath}/transactions/${id}`, { method: 'DELETE' });
+      setEntries((list) => list && list.filter((x) => x.id !== id));
+      onChanged(snapshot);
+      setConfirmId(null);
+    } catch {
+      setDeleteFailed(true);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +233,8 @@ function HistoryList({ basePath, sym, cur }: { basePath: string; sym: string; cu
         const when = new Date(e.createdAtMs).toLocaleString(lang === 'en' ? 'en-GB' : 'he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
         const foreign = e.originalCurrency && e.originalCurrency !== cur && e.originalAmount !== null;
         return (
-          <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '13px 0', borderTop: '1px solid var(--border-soft)' }}>
+          <div key={e.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '13px 0' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif" }}>{e.categoryName}</div>
               <div style={{ ...dim, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -230,6 +253,22 @@ function HistoryList({ basePath, sym, cur }: { basePath: string; sym: string; cu
               </div>
               {foreign && <div dir="ltr" style={dim}>{CURRENCY_SYMBOLS[e.originalCurrency!]}{fmtAmount(Math.abs(e.originalAmount!))}</div>}
             </div>
+            {editing && (
+              <div className="icon-btn" onClick={() => { setConfirmId(confirmId === e.id ? null : e.id); setDeleteFailed(false); }} aria-label={t('common.delete')}
+                style={{ width: 30, height: 30, color: 'var(--danger)', border: '1px solid var(--border)' }}>
+                <TrashIcon />
+              </div>
+            )}
+          </div>
+          {editing && confirmId === e.id && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0 13px' }}>
+              <div style={{ flex: 1, font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: deleteFailed ? 'var(--danger)' : 'var(--text-dim)' }}>
+                {deleteFailed ? t('budget.deleteFailed') : t('budget.deleteConfirm')}
+              </div>
+              <div className="btn btn-outline" style={{ padding: '7px 14px', color: 'var(--danger)', opacity: deleting ? 0.6 : 1 }} onClick={() => removeEntry(e.id)}>{t('common.delete')}</div>
+              <div className="btn btn-outline" style={{ padding: '7px 14px' }} onClick={() => { setConfirmId(null); setDeleteFailed(false); }}>{t('common.cancel')}</div>
+            </div>
+          )}
           </div>
         );
       })}
@@ -356,11 +395,11 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
           {subtitle && <div style={{ font: "400 12.5px/1.4 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{subtitle}</div>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <div className="icon-btn" onClick={() => { setShowHistory((v) => !v); setEditing(false); }} aria-label={t('budget.history')}
+          <div className="icon-btn" onClick={() => setShowHistory((v) => !v)} aria-label={t('budget.history')}
             style={{ border: `1px solid ${showHistory ? 'var(--accent)' : 'var(--border)'}`, color: showHistory ? 'var(--accent)' : 'var(--text-dim)' }}>
             <HistoryIcon />
           </div>
-          <div className="icon-btn" onClick={() => { setEditing((v) => !v); setShowHistory(false); }} aria-label={editing ? t('common.done') : t('common.edit')}
+          <div className="icon-btn" onClick={() => setEditing((v) => !v)} aria-label={editing ? t('common.done') : t('common.edit')}
             style={{ border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`, color: editing ? 'var(--accent)' : 'var(--text-dim)' }}>
             {editing ? <CheckIcon /> : <EditIcon />}
           </div>
@@ -396,7 +435,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
       </div>
 
       {showHistory ? (
-        <HistoryList basePath={basePath} sym={sym} cur={cur} />
+        <HistoryList basePath={basePath} sym={sym} cur={cur} editing={editing} onChanged={setData} />
       ) : (
       <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 10px' }}>

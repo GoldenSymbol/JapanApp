@@ -132,6 +132,15 @@ budgetRouter.get("/transactions", requireAuth, async (req: AuthedRequest, res) =
   res.json({ transactions: historyOf(txs, cats) });
 });
 
+budgetRouter.delete("/transactions/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const ref = tripRef(trip.id).collection("budgetTransactions").doc(String(req.params.id));
+  if (!(await ref.get()).exists) return res.status(404).json({ error: "not_found" });
+  await ref.delete();
+  res.json(await budgetSnapshot(trip.id, trip.budget_total));
+});
+
 budgetRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
   if (!trip) return;
@@ -271,6 +280,19 @@ budgetRouter.get("/personal/transactions", requireAuth, async (req: AuthedReques
   if (!trip) return;
   const [cats, txs] = await Promise.all([fetchPersonalCategories(trip.id, req.userId!), fetchPersonalTransactions(trip.id)]);
   res.json({ transactions: historyOf(txs, cats) });
+});
+
+budgetRouter.delete("/personal/transactions/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const ref = tripRef(trip.id).collection("personalBudgetTransactions").doc(String(req.params.id));
+  const doc = await ref.get();
+  if (!doc.exists) return res.status(404).json({ error: "not_found" });
+  // The transactions collection is shared by every member; ownership comes from the category.
+  const cat = await tripRef(trip.id).collection("personalBudgetCategories").doc(String(doc.data()!.categoryId)).get();
+  if (!cat.exists || cat.data()!.userId !== req.userId) return res.status(404).json({ error: "not_found" });
+  await ref.delete();
+  res.json(await personalSnapshot(trip.id, req.userId!));
 });
 
 budgetRouter.patch("/personal", requireAuth, async (req: AuthedRequest, res) => {
