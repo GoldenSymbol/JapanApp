@@ -13,7 +13,7 @@ async function memberList(tripId: string) {
   const users = await Promise.all(snap.docs.map((doc) => getUserDoc(doc.id)));
   return snap.docs.map((doc, i) => {
     const u = users[i];
-    return { id: doc.id, name: u?.name || "משתמש", email: u?.email || "", avatarColor: u?.avatarColor || "#B23A32", role: doc.data().role };
+    return { id: doc.id, name: u?.name || "משתמש", email: u?.email || "", avatarColor: u?.avatarColor || "#B23A32", photoUrl: u?.photoUrl ?? null, role: doc.data().role };
   });
 }
 

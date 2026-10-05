@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api } from '../api';
@@ -7,6 +7,8 @@ import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData } from '../state/TripDataContext';
 import type { Lang } from '../i18n/translations';
+import { Avatar } from '../components/Avatar';
+import { fileToAvatarDataUrl } from '../utils/avatarImage';
 
 const AVATAR_COLORS = ['#D9564B', '#7FB069', '#6FA8DC', '#D9A441', '#C77DBB'];
 const PALETTE_KEYS = ['paper', 'sakura', 'indigo', 'matcha'] as const;
@@ -37,7 +39,30 @@ export function Settings() {
   const navigate = useNavigate();
   const memberCount = tripMeta?.members.length || 1;
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [photoAsked, setPhotoAsked] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
+
+  async function onPhotoChosen(file: File | undefined) {
+    if (!file || photoBusy) return;
+    setPhotoBusy(true);
+    setPhotoError(false);
+    try {
+      await updateMe({ photoUrl: await fileToAvatarDataUrl(file) });
+    } catch {
+      setPhotoError(true);
+    } finally {
+      setPhotoBusy(false);
+      // So picking the same file again still fires onChange.
+      if (photoInput.current) photoInput.current.value = '';
+    }
+  }
+  async function removePhoto() {
+    if (photoBusy) return;
+    setPhotoBusy(true);
+    setPhotoError(false);
+    try { await updateMe({ photoUrl: null }); } catch { setPhotoError(true); } finally { setPhotoBusy(false); }
+  }
 
   if (!user) return null;
 
@@ -59,8 +84,8 @@ export function Settings() {
 
       <div className="card" style={{ margin: '0 22px', background: 'var(--card)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 56, height: 56, flex: 'none', borderRadius: '50%', background: user.avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 22px 'Noto Sans Hebrew',sans-serif", color: '#14161A' }}>
-            {user.name[0]}
+          <div onClick={() => photoInput.current?.click()} style={{ cursor: 'pointer', flex: 'none', opacity: photoBusy ? 0.5 : 1 }}>
+            <Avatar name={user.name} color={user.avatarColor} photoUrl={user.photoUrl} size={56} fontSize={22} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <input className="field" style={{ fontWeight: 600, fontSize: 16 }} defaultValue={user.name} onBlur={(e) => updateMe({ name: e.target.value })} />
@@ -73,10 +98,17 @@ export function Settings() {
             <div key={c} onClick={() => updateMe({ avatarColor: c })}
               style={{ width: 34, height: 34, borderRadius: '50%', background: c, cursor: 'pointer', border: `2px solid ${user.avatarColor === c ? 'var(--text)' : 'transparent'}` }} />
           ))}
-          <div className="pill" style={{ cursor: 'pointer', border: '1px dashed var(--border)' }} onClick={() => setPhotoAsked(true)}>
-            {photoAsked ? t('settings.uploadPhotoSoon') : t('settings.uploadPhoto')}
+          <div className="pill" style={{ cursor: 'pointer', border: '1px dashed var(--border)', opacity: photoBusy ? 0.5 : 1 }} onClick={() => photoInput.current?.click()}>
+            {t('settings.uploadPhoto')}
           </div>
+          {user.photoUrl && (
+            <div className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--danger)', opacity: photoBusy ? 0.5 : 1 }} onClick={removePhoto}>
+              {t('settings.removePhoto')}
+            </div>
+          )}
         </div>
+        {photoError && <div style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', marginTop: 10 }}>{t('settings.photoError')}</div>}
+        <input ref={photoInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onPhotoChosen(e.target.files?.[0])} />
       </div>
 
       <div className="section-label" style={{ padding: '26px 22px 10px' }}>{t('settings.display')}</div>

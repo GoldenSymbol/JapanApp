@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData, type BudgetSnapshot } from '../state/TripDataContext';
 import { useAuth } from '../state/AuthContext';
+import { Avatar } from '../components/Avatar';
 import { EditIcon, CheckIcon, HistoryIcon, TrashIcon } from '../components/Icons';
 
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
@@ -309,12 +310,7 @@ function HistoryList({ basePath, sym, cur, editing, data, onChanged }: {
             <div style={{ minWidth: 0 }}>
               <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif" }}>{e.categoryName}</div>
               <div style={{ ...dim, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {member && (
-                  <span style={{ width: 16, height: 16, flex: 'none', borderRadius: '50%', background: member.avatarColor, color: '#14161A',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', font: "600 9px 'Noto Sans Hebrew',sans-serif" }}>
-                    {member.name.charAt(0)}
-                  </span>
-                )}
+                {member && <Avatar name={member.name} color={member.avatarColor} photoUrl={member.photoUrl} size={16} fontSize={9} />}
                 <span>{[member?.name, when].filter(Boolean).join(' · ')}</span>
               </div>
             </div>

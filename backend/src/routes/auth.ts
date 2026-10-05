@@ -35,8 +35,19 @@ authRouter.post("/accept-terms", requireAuth, async (req: AuthedRequest, res) =>
   res.json({ user: publicUser(req.userId!, user!), currentTermsVersion: TERMS_VERSION });
 });
 
+// Profile photos are stored on the user document as a small inline JPEG (the client crops and
+// shrinks it to ~256px first), so an `<img>` can show it with no extra authenticated request.
+// Only that shape is accepted: not an arbitrary URL (which would let a profile make every member's
+// browser fetch a third-party address) and capped well under the JSON body limit.
+const PHOTO_PREFIX = "data:image/jpeg;base64,";
+const PHOTO_MAX_CHARS = 80_000;
+function isValidPhoto(v: unknown): boolean {
+  return v === null || (typeof v === "string" && v.startsWith(PHOTO_PREFIX) && v.length <= PHOTO_MAX_CHARS && /^[A-Za-z0-9+/=]+$/.test(v.slice(PHOTO_PREFIX.length)));
+}
+
 authRouter.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
   const body = req.body || {};
+  if ("photoUrl" in body && !isValidPhoto(body.photoUrl)) return res.status(400).json({ error: "invalid_photo" });
   const patch: Record<string, any> = {};
   for (const key of ["name", "avatarColor", "photoUrl", "darkMode", "palette", "uiLang", "baseCurrency"]) {
     if (key in body) patch[key] = body[key];

@@ -22,7 +22,7 @@ export interface Destination {
   groupId: string;
 }
 
-export interface TripMember { id: string; name: string; email: string; avatarColor: string; role: string; }
+export interface TripMember { id: string; name: string; email: string; avatarColor: string; photoUrl?: string | null; role: string; }
 export interface TripMeta {
   id: string; name: string; code: string; ownerId: string; budgetTotal: number;
   members: TripMember[];

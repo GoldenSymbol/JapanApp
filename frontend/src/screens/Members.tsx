@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Avatar } from '../components/Avatar';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../state/AuthContext';
@@ -64,9 +65,7 @@ export function Members() {
       <div style={{ padding: '0 22px' }}>
         {trip.members.map((m: any) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '15px 0', borderTop: '1px solid var(--border-soft)' }}>
-            <div style={{ width: 38, height: 38, flex: 'none', borderRadius: '50%', background: m.avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 15px 'Noto Sans Hebrew',sans-serif", color: '#14161A' }}>
-              {m.name[0]}
-            </div>
+            <Avatar name={m.name} color={m.avatarColor} photoUrl={m.photoUrl} size={38} fontSize={15} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <div style={{ font: "600 15.5px 'Noto Sans Hebrew',sans-serif" }}>{m.name}</div>
