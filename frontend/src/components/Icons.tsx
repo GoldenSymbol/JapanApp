@@ -183,10 +183,10 @@ export function EditIcon() {
 
 export function TranslateIcon() {
   return (
-    <span dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <span style={{ font: "600 13px/1 'Noto Sans Hebrew', sans-serif" }}>A</span>
-      <span style={{ font: "400 9px/1 sans-serif", color: 'var(--accent)', padding: '0 .5px' }}>⇄</span>
-      <span style={{ font: "400 12px/1 'Zen Old Mincho', serif" }}>あ</span>
+    <span dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+      <span style={{ font: "600 10.5px/1 'Noto Sans Hebrew', sans-serif" }}>A</span>
+      <span style={{ font: "400 7.5px/1 sans-serif", color: 'var(--accent)', padding: '0 .5px' }}>⇄</span>
+      <span style={{ font: "400 10px/1 'Zen Old Mincho', serif" }}>あ</span>
     </span>
   );
 }
