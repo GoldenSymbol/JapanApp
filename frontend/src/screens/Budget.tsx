@@ -168,19 +168,33 @@ function BudgetPieView({ data }: { data: any }) {
   );
 }
 
+// A snapshot with `delta` applied to one category (and the total), rounded like the server does.
+function withDelta(data: BudgetSnapshot, categoryId: string, delta: number): BudgetSnapshot {
+  const round = (n: number) => Math.round(n * 100) / 100;
+  const categories = data.categories.map((c) => {
+    if (c.id !== categoryId) return c;
+    const spent = round(c.spent + delta);
+    return { ...c, spent, percent: c.planned > 0 ? Math.min(999, Math.round((spent / c.planned) * 100)) : 0 };
+  });
+  return { ...data, paid: round(data.paid + delta), categories };
+}
+
+// How long the "deleted — undo" message stays before the delete is actually sent.
+const UNDO_WINDOW_MS = 2000;
+
 // How many of the newest entries show before "show more".
 const HISTORY_PREVIEW_COUNT = 3;
 
 interface HistoryEntry {
-  id: string; categoryName: string; amount: number;
+  id: string; categoryId: string; categoryName: string; amount: number;
   originalAmount: number | null; originalCurrency: string | null;
   userId: string | null; createdAtMs: number;
 }
 
 // The newest-first list of every add/subtract. Fetched each time it's opened rather than cached, so
 // it can't show a stale list after expenses were entered since the last visit.
-function HistoryList({ basePath, sym, cur, editing, onChanged }: {
-  basePath: string; sym: string; cur: string; editing: boolean; onChanged: (snapshot: BudgetSnapshot) => void;
+function HistoryList({ basePath, sym, cur, editing, data, onChanged }: {
+  basePath: string; sym: string; cur: string; editing: boolean; data: BudgetSnapshot; onChanged: (snapshot: BudgetSnapshot) => void;
 }) {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
@@ -188,26 +202,66 @@ function HistoryList({ basePath, sym, cur, editing, onChanged }: {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteFailed, setDeleteFailed] = useState(false);
+  // Deleting is optimistic with a short undo window: the row leaves the list and the totals change at
+  // once, but the DELETE is only sent when the window closes. Undo then just puts things back, with
+  // nothing to reverse on the server. Only one delete waits at a time; starting another sends the
+  // earlier one right away.
+  const pending = useRef<{ entry: HistoryEntry; index: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const [toast, setToast] = useState<'deleted' | 'failed' | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (kind: 'deleted' | 'failed', ms: number) => {
+    setToast(kind);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), ms);
+  };
 
-  // The server answers a delete with the new totals, so the budget above the list updates too.
-  async function removeEntry(id: string) {
-    if (deleting) return;
-    setDeleting(true);
-    setDeleteFailed(false);
+  async function sendDelete(entry: HistoryEntry, index: number) {
     try {
-      const snapshot = await api(`${basePath}/transactions/${id}`, { method: 'DELETE' });
-      setEntries((list) => list && list.filter((x) => x.id !== id));
-      onChanged(snapshot);
-      setConfirmId(null);
+      onChanged(await api(`${basePath}/transactions/${entry.id}`, { method: 'DELETE' }));
     } catch {
-      setDeleteFailed(true);
-    } finally {
-      setDeleting(false);
+      setEntries((list) => (list ? [...list.slice(0, index), entry, ...list.slice(index)] : list));
+      onChanged(withDelta(dataRef.current, entry.categoryId, entry.amount));
+      showToast('failed', 3000);
     }
   }
+  // The latest totals, for the async paths above that outlive a render.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  function startDelete(entry: HistoryEntry) {
+    if (!entries) return;
+    if (pending.current) {
+      clearTimeout(pending.current.timer);
+      sendDelete(pending.current.entry, pending.current.index);
+      pending.current = null;
+    }
+    const index = entries.findIndex((x) => x.id === entry.id);
+    setEntries(entries.filter((x) => x.id !== entry.id));
+    onChanged(withDelta(data, entry.categoryId, -entry.amount));
+    const timer = setTimeout(() => {
+      pending.current = null;
+      sendDelete(entry, index);
+    }, UNDO_WINDOW_MS);
+    pending.current = { entry, index, timer };
+    showToast('deleted', UNDO_WINDOW_MS);
+  }
+
+  function undoDelete() {
+    const p = pending.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pending.current = null;
+    setEntries((list) => (list ? [...list.slice(0, p.index), p.entry, ...list.slice(p.index)] : list));
+    onChanged(withDelta(data, p.entry.categoryId, p.entry.amount));
+    setToast(null);
+  }
+
+  // Leaving the screen inside the window still means the user deleted it.
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    const p = pending.current;
+    if (p) { clearTimeout(p.timer); api(`${basePath}/transactions/${p.entry.id}`, { method: 'DELETE' }).catch(() => {}); }
+  }, [basePath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,9 +272,26 @@ function HistoryList({ basePath, sym, cur, editing, onChanged }: {
   }, [basePath]);
 
   const dim = { font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 3 } as const;
+  // Slides up from the bottom, above the nav bar. The wrapper ignores touches so only the bubble itself is tappable.
+  const toastEl = (
+    <div style={{ position: 'fixed', left: 0, right: 0, bottom: 'calc(96px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center', zIndex: 50, pointerEvents: 'none' }}>
+      <AnimatePresence>
+        {toast && (
+          <motion.div key={toast} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} transition={{ duration: 0.18 }}
+            style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 18, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14,
+              padding: '12px 18px', boxShadow: '0 8px 24px rgba(0,0,0,0.35)', font: "500 13.5px 'Noto Sans Hebrew',sans-serif" }}>
+            <span style={{ color: toast === 'failed' ? 'var(--danger)' : 'var(--text)' }}>{toast === 'failed' ? t('budget.deleteFailed') : t('budget.entryDeleted')}</span>
+            {toast === 'deleted' && (
+              <span onClick={undoDelete} style={{ color: 'var(--accent)', fontWeight: 700, cursor: 'pointer' }}>{t('budget.undo')}</span>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
   if (failed) return <div style={{ ...dim, padding: '30px 0', textAlign: 'center' }}>{t('budget.historyError')}</div>;
   if (!entries) return <div style={{ ...dim, padding: '30px 0', textAlign: 'center' }}>{t('budget.historyLoading')}</div>;
-  if (entries.length === 0) return <div style={{ ...dim, padding: '30px 0', textAlign: 'center', fontSize: 13 }}>{t('budget.historyEmpty')}</div>;
+  if (entries.length === 0) return <><div style={{ ...dim, padding: '30px 0', textAlign: 'center', fontSize: 13 }}>{t('budget.historyEmpty')}</div>{toastEl}</>;
 
   return (
     <div>
@@ -254,21 +325,12 @@ function HistoryList({ basePath, sym, cur, editing, onChanged }: {
               {foreign && <div dir="ltr" style={dim}>{CURRENCY_SYMBOLS[e.originalCurrency!]}{fmtAmount(Math.abs(e.originalAmount!))}</div>}
             </div>
             {editing && (
-              <div className="icon-btn" onClick={() => { setConfirmId(confirmId === e.id ? null : e.id); setDeleteFailed(false); }} aria-label={t('common.delete')}
+              <div className="icon-btn" onClick={() => startDelete(e)} aria-label={t('common.delete')}
                 style={{ width: 30, height: 30, color: 'var(--danger)', border: '1px solid var(--border)' }}>
                 <TrashIcon />
               </div>
             )}
           </div>
-          {editing && confirmId === e.id && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0 13px' }}>
-              <div style={{ flex: 1, font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: deleteFailed ? 'var(--danger)' : 'var(--text-dim)' }}>
-                {deleteFailed ? t('budget.deleteFailed') : t('budget.deleteConfirm')}
-              </div>
-              <div className="btn btn-outline" style={{ padding: '7px 14px', color: 'var(--danger)', opacity: deleting ? 0.6 : 1 }} onClick={() => removeEntry(e.id)}>{t('common.delete')}</div>
-              <div className="btn btn-outline" style={{ padding: '7px 14px' }} onClick={() => { setConfirmId(null); setDeleteFailed(false); }}>{t('common.cancel')}</div>
-            </div>
-          )}
           </div>
         );
       })}
@@ -278,6 +340,7 @@ function HistoryList({ basePath, sym, cur, editing, onChanged }: {
           {expanded ? t('budget.historyLess') : t('budget.historyMore', { count: entries.length - HISTORY_PREVIEW_COUNT })}
         </div>
       )}
+      {toastEl}
     </div>
   );
 }
@@ -435,7 +498,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
       </div>
 
       {showHistory ? (
-        <HistoryList basePath={basePath} sym={sym} cur={cur} editing={editing} onChanged={setData} />
+        <HistoryList basePath={basePath} sym={sym} cur={cur} editing={editing} data={data} onChanged={setData} />
       ) : (
       <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0 10px' }}>

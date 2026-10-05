@@ -81,6 +81,7 @@ function historyOf(txs: any[], cats: any[]) {
     .slice(0, 200)
     .map((t) => ({
       id: t.id,
+      categoryId: t.categoryId,
       categoryName: names.get(t.categoryId)!,
       amount: t.amount,
       originalAmount: t.originalAmount ?? null,
