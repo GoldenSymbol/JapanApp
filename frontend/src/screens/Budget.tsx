@@ -28,6 +28,14 @@ function readSavedTxCurrency(): string | null {
   } catch { return null; }
 }
 
+// For money fields: digits and at most one decimal point. A comma is read as the point (some phone
+// keyboards only offer a comma), and anything else typed or pasted is dropped.
+function sanitizeAmount(v: string) {
+  const cleaned = v.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  const dot = cleaned.indexOf('.');
+  return dot === -1 ? cleaned : cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+}
+
 function Converter() {
   const { t } = useLanguage();
   const [open, setOpen] = useState(true);
@@ -56,7 +64,7 @@ function Converter() {
       {open && (
         <div className="card" style={{ marginTop: 10, background: 'var(--card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input className="field" style={{ flex: 1, textAlign: 'right', direction: 'ltr' }} value={amount} placeholder="1000" onChange={(e) => setAmount(e.target.value)} />
+            <input className="field" style={{ flex: 1, textAlign: 'right', direction: 'ltr' }} value={amount} placeholder="1000" inputMode="decimal" onChange={(e) => setAmount(sanitizeAmount(e.target.value))} />
             <div onClick={() => { setFrom(to); setTo(from); }} style={{ cursor: 'pointer', color: 'var(--accent)', fontSize: 18, flex: 'none' }}>⇄</div>
           </div>
           <div className="section-label" style={{ padding: '14px 0 6px' }}>{t('budget.from')}</div>
@@ -364,8 +372,8 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
               <div className="section-label" style={{ paddingBottom: 6 }}>{t('budget.totalLabel', { cur: sym })}</div>
-              <input className="field" style={{ fontWeight: 600 }} type="number" value={totalDraft} placeholder={String(data.total)}
-                onChange={(e) => setTotalDraft(e.target.value)}
+              <input className="field" style={{ fontWeight: 600 }} inputMode="decimal" value={totalDraft} placeholder={String(data.total)}
+                onChange={(e) => setTotalDraft(sanitizeAmount(e.target.value))}
                 onBlur={(e) => { if (e.target.value.trim() !== '') setTotal(Number(e.target.value)); setTotalDraft(''); }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 2 }}>
@@ -466,8 +474,8 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
                     </>
                   )}
                 </div>
-                <input className="field" style={{ flex: 1, minWidth: 0, borderStyle: 'dashed' }} placeholder={t('budget.addExpensePlaceholder')} value={addVals[c.id] || ''}
-                  onChange={(e) => setAdd(c.id, e.target.value)}
+                <input className="field" style={{ flex: 1, minWidth: 0, borderStyle: 'dashed' }} placeholder={t('budget.addExpensePlaceholder')} value={addVals[c.id] || ''} inputMode="decimal"
+                  onChange={(e) => setAdd(c.id, sanitizeAmount(e.target.value))}
                   onKeyDown={(e) => e.key === 'Enter' && applyTx(c.id, 'add')} />
                 <div className="btn btn-accent" onClick={() => applyTx(c.id, 'add')}>{t('budget.addTx')}</div>
                 <div className="btn btn-outline" onClick={() => applyTx(c.id, 'subtract')}>{t('budget.subtractTx')}</div>
