@@ -8,7 +8,7 @@ import { useLanguage } from '../state/LanguageContext';
 import { useTripData } from '../state/TripDataContext';
 import type { Lang } from '../i18n/translations';
 import { Avatar } from '../components/Avatar';
-import { fileToAvatarDataUrl } from '../utils/avatarImage';
+import { AvatarCropper } from '../components/AvatarCropper';
 
 const AVATAR_COLORS = ['#D9564B', '#7FB069', '#6FA8DC', '#D9A441', '#C77DBB'];
 const PALETTE_KEYS = ['paper', 'sakura', 'indigo', 'matcha'] as const;
@@ -43,18 +43,26 @@ export function Settings() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState(false);
 
-  async function onPhotoChosen(file: File | undefined) {
+  // The picture picked from the device; while set, the cropper is open on it.
+  const [cropFile, setCropFile] = useState<File | null>(null);
+
+  function onPhotoChosen(file: File | undefined) {
     if (!file || photoBusy) return;
-    setPhotoBusy(true);
     setPhotoError(false);
+    setCropFile(file);
+    // So picking the same file again still fires onChange.
+    if (photoInput.current) photoInput.current.value = '';
+  }
+  async function saveCroppedPhoto(dataUrl: string) {
+    setPhotoBusy(true);
     try {
-      await updateMe({ photoUrl: await fileToAvatarDataUrl(file) });
+      await updateMe({ photoUrl: dataUrl });
+      setCropFile(null);
     } catch {
+      setCropFile(null);
       setPhotoError(true);
     } finally {
       setPhotoBusy(false);
-      // So picking the same file again still fires onChange.
-      if (photoInput.current) photoInput.current.value = '';
     }
   }
   async function removePhoto() {
@@ -109,6 +117,10 @@ export function Settings() {
         </div>
         {photoError && <div style={{ font: "400 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', marginTop: 10 }}>{t('settings.photoError')}</div>}
         <input ref={photoInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onPhotoChosen(e.target.files?.[0])} />
+        {cropFile && (
+          <AvatarCropper file={cropFile} onSave={saveCroppedPhoto} onCancel={() => setCropFile(null)}
+            onError={() => { setCropFile(null); setPhotoError(true); }} />
+        )}
       </div>
 
       <div className="section-label" style={{ padding: '26px 22px 10px' }}>{t('settings.display')}</div>

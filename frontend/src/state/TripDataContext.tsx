@@ -87,7 +87,7 @@ interface TripDataState {
 const Ctx = createContext<TripDataState | null>(null);
 
 export function TripDataProvider({ children }: { children: ReactNode }) {
-  const { trip } = useAuth();
+  const { trip, user } = useAuth();
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [tripMeta, setTripMeta] = useState<TripMeta | null>(null);
   const [budget, setBudget] = useState<BudgetSnapshot | null>(null);
@@ -197,6 +197,20 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   }, [trip]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // The member list is fetched once, so it doesn't know about edits the signed-in user makes to their
+  // own profile (name, colour, photo) afterwards: Settings would show the new picture while Members
+  // and the budget history kept the old one. `user` is updated the moment such an edit is saved, so
+  // mirror it into this user's row. It only writes when something actually differs, so it settles.
+  useEffect(() => {
+    if (!user) return;
+    setTripMeta((meta) => {
+      const mine = meta?.members.find((m) => m.id === user.id);
+      if (!meta || !mine) return meta;
+      if (mine.name === user.name && mine.avatarColor === user.avatarColor && (mine.photoUrl ?? null) === (user.photoUrl ?? null)) return meta;
+      return { ...meta, members: meta.members.map((m) => (m.id === user.id ? { ...m, name: user.name, avatarColor: user.avatarColor, photoUrl: user.photoUrl } : m)) };
+    });
+  }, [user, tripMeta]);
 
   // Write-through: whenever this trip's data actually changes post-load, save a fresh snapshot
   // so a later offline load has something recent to fall back to. Runs after every successful
