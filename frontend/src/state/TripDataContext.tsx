@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, isServerUnreachable } from '../api';
 import { useAuth } from './AuthContext';
 import { loadTripSnapshot, saveTripSnapshot } from './offlineCache';
@@ -82,7 +82,21 @@ interface TripDataState {
   ensureAttractions: (destId: string) => Promise<void>;
   refreshAttractions: (destId: string) => Promise<void>;
   setAttractionsLocal: (destId: string, spots: Attraction[]) => void;
+  // Counts the background refreshes that brought in someone else's changes, for components that keep
+  // their own fetched copy (the budget history) and need to know when to fetch it again.
+  dataVersion: number;
+  // Asks the background refresh to leave things alone for `ms`: used while a screen has a change in
+  // flight (an optimistic update, the undo window) that fresh server data would briefly undo.
+  holdRefresh: (ms: number) => void;
 }
+
+// How often the app checks whether the other member changed anything (while it's on screen), how
+// soon it re-checks when it had to postpone a refresh, and the slower pace it settles into after a
+// few quiet minutes. Coming back to the app, or the network returning, checks immediately.
+const POLL_MS = 20_000;
+const POLL_RETRY_MS = 3_000;
+const POLL_IDLE_AFTER_MS = 5 * 60_000;
+const POLL_IDLE_MS = 60_000;
 
 const Ctx = createContext<TripDataState | null>(null);
 
@@ -212,6 +226,107 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     });
   }, [user, tripMeta]);
 
+  // ---- Picking up the other member's changes in the background ----
+  // The server bumps a per-trip counter on every write. Polling that one number is cheap, and only
+  // when it moves is the full data fetched again. See POLL_* below for the cadence.
+  const [dataVersion, setDataVersion] = useState(0);
+  const holdUntil = useRef(0);
+  const holdRefresh = useCallback((ms: number) => { holdUntil.current = Math.max(holdUntil.current, Date.now() + ms); }, []);
+  const attractionsRef = useRef(attractionsByDestination);
+  attractionsRef.current = attractionsByDestination;
+  const offlineRef = useRef(offline);
+  offlineRef.current = offline;
+
+  // Like refresh(), but invisible: no loading state, and the attractions already loaded this session
+  // are refreshed in place instead of being thrown away (which would blank City/Today for a moment).
+  const softRefresh = useCallback(async () => {
+    const [destData, tripData, budgetData, personalData, foldersData] = await Promise.all([
+      api('/destinations'), api('/trips/current'), api('/budget'), api('/budget/personal'), api('/documents/folders'),
+    ]);
+    setDestinations(destData.destinations);
+    setTripMeta(tripData.trip);
+    setBudget(budgetData);
+    setPersonalBudget(personalData);
+    setDocumentFolders(foldersData.folders);
+    await Promise.all(Object.keys(attractionsRef.current).map((id) => refreshAttractions(id)));
+    setDataVersion((v) => v + 1);
+  }, [refreshAttractions]);
+
+  useEffect(() => {
+    if (!tripId) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastRev: number | null = null;
+    let lastChangeAt = Date.now();
+    let pointerDown = false;
+    const onDown = () => { pointerDown = true; };
+    const onUp = () => { pointerDown = false; };
+
+    // Don't swap data out from under someone mid-gesture: typing in a field, dragging, or a screen
+    // that asked for a hold.
+    const busy = () => {
+      if (pointerDown || Date.now() < holdUntil.current) return true;
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      if (el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+      return el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'range', 'file'].includes((el as HTMLInputElement).type);
+    };
+
+    // Only one check runs at a time. Coming back to the app wakes the loop early; without this guard
+    // a wake-up during a check would start a second loop that then runs alongside the first.
+    let running = false;
+    async function tick() {
+      if (stopped || running) return;
+      running = true;
+      let behind = false;
+      if (!document.hidden && navigator.onLine && !offlineRef.current) {
+        try {
+          const { rev } = await api('/sync/rev');
+          if (lastRev === null) {
+            lastRev = rev;
+          } else if (rev !== lastRev) {
+            if (busy()) {
+              behind = true;
+            } else {
+              await softRefresh();
+              lastRev = rev;
+              lastChangeAt = Date.now();
+            }
+          }
+        } catch {
+          // Offline, signed out or a hiccup: just try again next time.
+        }
+      }
+      running = false;
+      if (stopped) return;
+      const idle = Date.now() - lastChangeAt > POLL_IDLE_AFTER_MS;
+      timer = setTimeout(tick, behind ? POLL_RETRY_MS : idle ? POLL_IDLE_MS : POLL_MS);
+    }
+    function wake() {
+      if (document.hidden) return;
+      clearTimeout(timer);
+      tick();
+    }
+
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('pointerup', onUp, true);
+    document.addEventListener('pointercancel', onUp, true);
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    window.addEventListener('online', wake);
+    tick();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onUp, true);
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+      window.removeEventListener('online', wake);
+    };
+  }, [tripId, softRefresh]);
+
   // Write-through: whenever this trip's data actually changes post-load, save a fresh snapshot
   // so a later offline load has something recent to fall back to. Runs after every successful
   // fetch and every local mutation (including the optimistic drag-reorder in City.tsx) — cheap,
@@ -245,6 +360,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
       personalBudget, refreshPersonalBudget, setPersonalBudgetSnapshot: setPersonalBudget,
       documentFolders, refreshDocumentFolders,
       attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
+      dataVersion, holdRefresh,
     }}>
       {children}
     </Ctx.Provider>

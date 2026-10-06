@@ -199,7 +199,7 @@ function HistoryList({ basePath, sym, cur, editing, data, onChanged }: {
 }) {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
-  const { tripMeta } = useTripData();
+  const { tripMeta, dataVersion, holdRefresh } = useTripData();
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -236,6 +236,7 @@ function HistoryList({ basePath, sym, cur, editing, data, onChanged }: {
       sendDelete(pending.current.entry, pending.current.index);
       pending.current = null;
     }
+    holdRefresh(UNDO_WINDOW_MS + 2500);
     const index = entries.findIndex((x) => x.id === entry.id);
     setEntries(entries.filter((x) => x.id !== entry.id));
     onChanged(withDelta(data, entry.categoryId, -entry.amount));
@@ -270,7 +271,7 @@ function HistoryList({ basePath, sym, cur, editing, data, onChanged }: {
       .then((d) => { if (!cancelled) setEntries(d.transactions); })
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
-  }, [basePath]);
+  }, [basePath, dataVersion]);
 
   const dim = { font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 3 } as const;
   // Slides up from the bottom, above the nav bar. The wrapper ignores touches so only the bubble itself is tappable.
@@ -351,6 +352,7 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
   title: string; subtitle?: string; newCategoryLabel: string; allowChart?: boolean;
 }) {
   const { t } = useLanguage();
+  const { holdRefresh } = useTripData();
   const [editing, setEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [addVals, setAddVals] = useState<Record<string, string>>({});
@@ -411,6 +413,8 @@ function BudgetSection({ basePath, data, refreshData, setData, title, subtitle, 
     const amount = parseFloat(addValsRef.current[id] || '0');
     if (!amount || !data) return;
     const txCurrency = txCurrencyFor(id);
+    // Until the server's answer lands, fresh data from a background refresh could briefly undo the instant update.
+    holdRefresh(4000);
     const converted = toBudgetCurrency(amount, txCurrency);
     setAdd(id, '');
     // With no rate to estimate from yet, skip the instant update; the server's answer still lands.

@@ -1,6 +1,7 @@
 import { adminDb } from "./firebaseAdmin.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { getUserName } from "./users.js";
+import { requestTrip } from "./requestContext.js";
 
 export interface TripRow {
   id: string;
@@ -8,6 +9,8 @@ export interface TripRow {
   code: string;
   owner_id: string;
   budget_total: number;
+  // Bumped on every successful write to the trip; clients poll it to learn that something changed.
+  rev: number;
 }
 
 export async function getMyTrip(userId: string): Promise<TripRow | undefined> {
@@ -15,7 +18,9 @@ export async function getMyTrip(userId: string): Promise<TripRow | undefined> {
   if (snap.empty) return undefined;
   const doc = snap.docs[0];
   const d = doc.data();
-  return { id: doc.id, name: d.name, code: d.code, owner_id: d.ownerId, budget_total: d.budgetTotal || 0 };
+  const store = requestTrip.getStore();
+  if (store) store.tripId = doc.id;
+  return { id: doc.id, name: d.name, code: d.code, owner_id: d.ownerId, budget_total: d.budgetTotal || 0, rev: d.rev || 0 };
 }
 
 export async function requireMembership(tripId: string, userId: string): Promise<boolean> {
