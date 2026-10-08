@@ -64,6 +64,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'authError.auth/wrong-password': 'אימייל או סיסמה שגויים',
     'authError.auth/invalid-credential': 'אימייל או סיסמה שגויים',
     'authError.auth/too-many-requests': 'יותר מדי ניסיונות, נסה שוב בעוד כמה דקות',
+    'authError.unavailable': 'השירות לא זמין כרגע. נסו שוב בעוד רגע.',
+    'authError.network': 'אין חיבור לאינטרנט. בדקו את החיבור ונסו שוב.',
     'authError.default': 'שגיאה, נסה שוב',
     'authError.profileLoadFailed': 'לא הצלחנו לטעון את הפרופיל שלך, נסה/י שוב',
 
@@ -446,6 +448,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'authError.auth/wrong-password': 'Incorrect email or password',
     'authError.auth/invalid-credential': 'Incorrect email or password',
     'authError.auth/too-many-requests': 'Too many attempts — try again in a few minutes',
+    'authError.unavailable': 'The service is temporarily unavailable. Please try again in a moment.',
+    'authError.network': 'No internet connection. Check your connection and try again.',
     'authError.default': 'Something went wrong, please try again',
     'authError.profileLoadFailed': "We couldn't load your profile, please try again",
 

@@ -5,6 +5,7 @@ import { useLanguage } from '../state/LanguageContext';
 import { ApiError } from '../api';
 import { Drawer } from '../components/Drawer';
 import logo from '../assets/logo.png';
+import { authErrorText } from '../utils/authErrors';
 
 export function Login() {
   const { login, resetPassword } = useAuth();
@@ -29,7 +30,7 @@ export function Login() {
     } catch (e) {
       if (e instanceof ApiError) {
         const code = e.payload?.error;
-        setError(code && (code.startsWith('auth/') || code === 'weak_password') ? t(`authError.${code}`) : e.message || t('login.genericError'));
+        setError(code && (code.startsWith('auth/') || code === 'weak_password') ? authErrorText(t, code) : e.message || t('login.genericError'));
       } else {
         setError(t('login.genericError'));
       }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { useLanguage } from '../state/LanguageContext';
 import { ApiError } from '../api';
+import { authErrorText } from '../utils/authErrors';
 
 export function Signup() {
   const { signup } = useAuth();
@@ -25,7 +26,7 @@ export function Signup() {
     } catch (e) {
       if (e instanceof ApiError) {
         const code = e.payload?.error;
-        setError(code && (code.startsWith('auth/') || code === 'weak_password') ? t(`authError.${code}`) : e.message || t('signup.genericError'));
+        setError(code && (code.startsWith('auth/') || code === 'weak_password') ? authErrorText(t, code) : e.message || t('signup.genericError'));
       } else {
         setError(t('signup.genericError'));
       }
