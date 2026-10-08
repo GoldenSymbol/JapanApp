@@ -13,7 +13,6 @@ export function Members() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
 
   async function copyCode() {
     // Only reachable once the component has actually rendered its content below, which is
@@ -29,12 +28,6 @@ export function Members() {
   }
   async function rotateCode() { await api('/trips/rotate-code', { method: 'POST' }); await refreshTripMeta(); }
   async function removeMember(id: string) { await api(`/trips/members/${id}`, { method: 'DELETE' }); await refreshTripMeta(); }
-  async function sendInvite() {
-    if (!inviteEmail.includes('@')) return;
-    await api('/trips/invite', { method: 'POST', json: { email: inviteEmail } });
-    setInviteEmail('');
-    await refreshTripMeta();
-  }
 
   if (!trip || !user) return null;
 
@@ -82,25 +75,6 @@ export function Members() {
         ))}
       </div>
 
-      {trip.pendingInvites?.length > 0 && trip.pendingInvites.map((inv: any) => (
-        <div key={inv.email} style={{ margin: '24px 22px 0', border: '1px dashed var(--border)', borderRadius: 16, padding: 15 }}>
-          <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', letterSpacing: '.5px' }}>{t('members.pendingInvite')}</div>
-          <div style={{ font: "600 14.5px 'Noto Sans Hebrew',sans-serif", marginTop: 6, direction: 'ltr', textAlign: 'right' }}>{inv.email}</div>
-          <div style={{ font: "400 11.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 5 }}>{t('members.waiting')}</div>
-        </div>
-      ))}
-
-      <div style={{ padding: '26px 22px 0' }}>
-        <div className="section-label" style={{ paddingBottom: 10 }}>{t('members.inviteByEmail')}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input className="field" style={{ flex: 1, direction: 'ltr', textAlign: 'left' }} placeholder={t('members.emailPlaceholder')}
-            value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendInvite()} />
-          <div className="btn btn-accent" onClick={sendInvite}>{t('members.invite')}</div>
-        </div>
-        <div style={{ font: "400 11.5px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>
-          {t('members.inviteNote')}
-        </div>
-      </div>
       <div style={{ padding: '26px 22px 0' }}>
         <div className="btn" style={{ border: '1px solid rgba(217,86,75,.4)', color: 'var(--danger)', textAlign: 'center', padding: 15 }} onClick={() => { logout(); navigate('/login'); }}>{t('members.logout')}</div>
       </div>

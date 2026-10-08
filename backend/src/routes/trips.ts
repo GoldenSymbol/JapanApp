@@ -70,26 +70,13 @@ tripsRouter.post("/join", requireAuth, async (req: AuthedRequest, res) => {
   batch.update(tripRef, { memberIds: FieldValue.arrayUnion(req.userId) });
   await batch.commit();
 
-  const email = (await getUserDoc(req.userId!))?.email;
-  if (email) {
-    const pending = await tripRef.collection("invites").where("email", "==", email).where("status", "==", "pending").get();
-    const inviteBatch = adminDb.batch();
-    pending.docs.forEach((doc) => inviteBatch.update(doc.ref, { status: "joined" }));
-    if (!pending.empty) await inviteBatch.commit();
-  }
   res.json({ trip: { id: tripRef.id, name: d.name, code: d.code } });
 });
 
 tripsRouter.get("/current", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await getMyTrip(req.userId!);
   if (!trip) return res.json({ trip: null });
-  // Independent of each other (and of memberList's own per-member reads) — running them together
-  // instead of one after another cuts this endpoint's Firestore round-trips from three in series
-  // down to two.
-  const [invitesSnap, members] = await Promise.all([
-    adminDb.collection("trips").doc(trip.id).collection("invites").where("status", "==", "pending").get(),
-    memberList(trip.id),
-  ]);
+  const members = await memberList(trip.id);
   res.json({
     trip: {
       id: trip.id,
@@ -98,7 +85,6 @@ tripsRouter.get("/current", requireAuth, async (req: AuthedRequest, res) => {
       ownerId: trip.owner_id,
       budgetTotal: trip.budget_total,
       members,
-      pendingInvites: invitesSnap.docs.map((doc) => ({ email: doc.data().email, created_at: doc.data().createdAt?.toDate?.().toISOString() ?? null })),
     },
   });
 });
@@ -109,15 +95,6 @@ tripsRouter.post("/rotate-code", requireAuth, async (req: AuthedRequest, res) =>
   const code = genInviteCode();
   await adminDb.collection("trips").doc(trip.id).update({ code });
   res.json({ code });
-});
-
-tripsRouter.post("/invite", requireAuth, async (req: AuthedRequest, res) => {
-  const trip = await getMyTrip(req.userId!);
-  if (!trip) return res.status(404).json({ error: "no_trip" });
-  const email = String(req.body?.email || "").toLowerCase().trim();
-  if (!email.includes("@")) return res.status(400).json({ error: "invalid_email" });
-  await adminDb.collection("trips").doc(trip.id).collection("invites").add({ email, status: "pending", createdAt: FieldValue.serverTimestamp() });
-  res.json({ ok: true });
 });
 
 tripsRouter.delete("/members/:userId", requireAuth, async (req: AuthedRequest, res) => {

@@ -26,7 +26,6 @@ export interface TripMember { id: string; name: string; email: string; avatarCol
 export interface TripMeta {
   id: string; name: string; code: string; ownerId: string; budgetTotal: number;
   members: TripMember[];
-  pendingInvites: { email: string; created_at: string | null }[];
 }
 
 export interface BudgetCategory { id: string; name: string; planned: number; spent: number; note: string | null; percent: number; }

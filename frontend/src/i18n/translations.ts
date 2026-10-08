@@ -284,12 +284,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     'members.member': 'משתתף/ת',
     'members.you': 'אתה',
     'members.remove': 'הסר',
-    'members.pendingInvite': 'הזמנה שנשלחה',
-    'members.waiting': 'ממתין להצטרפות',
-    'members.inviteByEmail': 'הזמנה באימייל',
-    'members.emailPlaceholder': 'name@example.com',
-    'members.invite': 'הזמן',
-    'members.inviteNote': 'הקוד משותף לכל המשתתפים. קישור באימייל הוא אישי וחד-פעמי.',
     'members.logout': 'יציאה מהחשבון',
 
     // settings
@@ -668,12 +662,6 @@ export const translations: Record<Lang, Record<string, string>> = {
     'members.member': 'Member',
     'members.you': 'You',
     'members.remove': 'Remove',
-    'members.pendingInvite': 'Invitation sent',
-    'members.waiting': 'Waiting to join',
-    'members.inviteByEmail': 'Invite by email',
-    'members.emailPlaceholder': 'name@example.com',
-    'members.invite': 'Invite',
-    'members.inviteNote': 'The code is shared by all members. An email link is personal and one-time use.',
     'members.logout': 'Log out',
 
     // settings
