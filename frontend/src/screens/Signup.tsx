@@ -10,6 +10,7 @@ export function Signup() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -48,8 +49,13 @@ export function Signup() {
         <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
       <div style={{ marginTop: 14 }}>
-        <div className="section-label" style={{ paddingBottom: 9 }}>{t('login.password')}</div>
-        <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} type="password" placeholder={t('signup.passwordPlaceholder')} value={password}
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 9 }}>
+          <div className="section-label">{t('login.password')}</div>
+          <div onClick={() => setShowPw((v) => !v)} style={{ font: "500 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', cursor: 'pointer' }}>
+            {showPw ? t('login.hide') : t('login.show')}
+          </div>
+        </div>
+        <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} type={showPw ? 'text' : 'password'} placeholder={t('signup.passwordPlaceholder')} value={password}
           onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
       </div>
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }} onClick={() => setAgreedToTerms((v) => !v)}>
