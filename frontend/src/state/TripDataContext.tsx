@@ -57,6 +57,8 @@ interface TripDataState {
   // their slice here; each has its own refresh*() for after an action that actually changes it.
   tripMeta: TripMeta | null;
   refreshTripMeta: () => Promise<void>;
+  // Applies a known change to the member/trip info directly, for when the server's reply already contains it.
+  patchTripMeta: (patch: Partial<TripMeta>) => void;
   budget: BudgetSnapshot | null;
   refreshBudget: () => Promise<void>;
   setBudgetSnapshot: (s: BudgetSnapshot) => void;
@@ -111,6 +113,9 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   const [offline, setOffline] = useState(false);
   const tripId = trip?.id;
 
+  const patchTripMeta = useCallback((patch: Partial<TripMeta>) => {
+    setTripMeta((m) => (m ? { ...m, ...patch } : m));
+  }, []);
   const refreshTripMeta = useCallback(async () => {
     if (!trip) { setTripMeta(null); return; }
     try {
@@ -354,7 +359,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{
       destinations, loading, refresh, offline,
-      tripMeta, refreshTripMeta,
+      tripMeta, refreshTripMeta, patchTripMeta,
       budget, refreshBudget, setBudgetSnapshot: setBudget,
       personalBudget, refreshPersonalBudget, setPersonalBudgetSnapshot: setPersonalBudget,
       documentFolders, refreshDocumentFolders,

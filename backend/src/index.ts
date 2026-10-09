@@ -37,7 +37,7 @@ app.use("/api", (req, res, next) => {
     let bumped = false;
     res.send = ((body?: any) => {
       const userId = (req as AuthedRequest).userId;
-      if (bumped || res.statusCode >= 400 || !userId || req.path.startsWith("/notifications")) return send(body);
+      if (bumped || store.revBumped || res.statusCode >= 400 || !userId || req.path.startsWith("/notifications")) return send(body);
       bumped = true;
       bumpTripRev(userId, store.tripId).catch((err) => console.error("rev bump failed", err)).finally(() => send(body));
       return res;

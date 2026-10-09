@@ -5,28 +5,51 @@ import { api } from '../api';
 import { useAuth } from '../state/AuthContext';
 import { useLanguage } from '../state/LanguageContext';
 import { useTripData } from '../state/TripDataContext';
+import { generateInviteCode } from '../utils/inviteCode';
 
 export function Members() {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
-  const { tripMeta: trip, refreshTripMeta } = useTripData();
+  const { tripMeta: trip, refreshTripMeta, patchTripMeta, holdRefresh } = useTripData();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
   const [shared, setShared] = useState(false);
 
   async function copyCode() {
+    if (rotating) return;
     // Only reachable once the component has actually rendered its content below, which is
     // gated on trip being non-null.
     try { await navigator.clipboard.writeText(trip!.code); } catch { /* clipboard may be unavailable */ }
     setCopied(true); setTimeout(() => setCopied(false), 1600);
   }
   async function shareCode() {
+    if (rotating) return;
     const text = t('members.shareText', { code: trip!.code });
     if (navigator.share) { try { await navigator.share({ text }); } catch { /* cancelled */ } }
     else { try { await navigator.clipboard.writeText(text); } catch { /* ignore */ } }
     setShared(true); setTimeout(() => setShared(false), 1600);
   }
-  async function rotateCode() { await api('/trips/rotate-code', { method: 'POST' }); await refreshTripMeta(); }
+  // The new code shows immediately and is confirmed with the server in the background: the server's reply
+  // (almost always the same code) is applied directly, with no second request to reload the member list.
+  // If saving fails the old code comes back. Copy/share wait out the short window where the new code
+  // isn't saved yet, and repeat taps are ignored.
+  async function rotateCode() {
+    if (rotating || !trip) return;
+    const previous = trip.code;
+    const proposed = generateInviteCode();
+    setRotating(true);
+    holdRefresh(5000);
+    patchTripMeta({ code: proposed });
+    try {
+      const { code } = await api('/trips/rotate-code', { method: 'POST', json: { code: proposed } });
+      if (code !== proposed) patchTripMeta({ code });
+    } catch {
+      patchTripMeta({ code: previous });
+    } finally {
+      setRotating(false);
+    }
+  }
   async function removeMember(id: string) { await api(`/trips/members/${id}`, { method: 'DELETE' }); await refreshTripMeta(); }
 
   if (!trip || !user) return null;
@@ -49,7 +72,7 @@ export function Members() {
           <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={copyCode}>{copied ? t('members.copied') : t('members.copyCode')}</div>
           <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center' }} onClick={shareCode}>{shared ? t('members.shared') : t('members.shareLink')}</div>
         </div>
-        <div onClick={rotateCode} style={{ marginTop: 10, textAlign: 'center', font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', cursor: 'pointer', padding: 6 }}>
+        <div onClick={rotateCode} style={{ opacity: rotating ? 0.5 : 1, marginTop: 10, textAlign: 'center', font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', cursor: 'pointer', padding: 6 }}>
           {t('members.newCode')}
         </div>
       </div>

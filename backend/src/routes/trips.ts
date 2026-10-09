@@ -4,6 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, genInviteCode } from "../context.js";
+import { requestTrip } from "../requestContext.js";
 import { getUserDoc } from "../users.js";
 
 export const tripsRouter = Router();
@@ -89,11 +90,24 @@ tripsRouter.get("/current", requireAuth, async (req: AuthedRequest, res) => {
   });
 });
 
+const CODE_PATTERN = /^JPN-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/;
+
+// The app shows a new code the instant the button is pressed, so it proposes the code itself and this
+// only has to confirm it is free (looked up alongside the trip rather than after it) and save it. If
+// it is taken, or none was proposed, a fresh one is generated and returned for the app to show instead.
+// The change counter is bumped in this same write, saving the middleware a second one.
 tripsRouter.post("/rotate-code", requireAuth, async (req: AuthedRequest, res) => {
-  const trip = await getMyTrip(req.userId!);
+  const proposed = String(req.body?.code || "").toUpperCase();
+  const wanted = CODE_PATTERN.test(proposed) ? proposed : null;
+  const [trip, taken] = await Promise.all([
+    getMyTrip(req.userId!),
+    wanted ? adminDb.collection("trips").where("code", "==", wanted).limit(1).get().then((s) => !s.empty) : Promise.resolve(false),
+  ]);
   if (!trip) return res.status(404).json({ error: "no_trip" });
-  const code = genInviteCode();
-  await adminDb.collection("trips").doc(trip.id).update({ code });
+  const code = wanted && !taken ? wanted : genInviteCode();
+  await adminDb.collection("trips").doc(trip.id).update({ code, rev: FieldValue.increment(1) });
+  const store = requestTrip.getStore();
+  if (store) store.revBumped = true;
   res.json({ code });
 });
 
