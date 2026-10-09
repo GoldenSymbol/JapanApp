@@ -23,7 +23,7 @@ export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () 
   const [input, setInput] = useState('');
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<null | 'unavailable' | 'limit'>(null);
   const [copied, setCopied] = useState(false);
   const latest = useRef(0);
 
@@ -39,15 +39,19 @@ export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () 
   useEffect(() => {
     const text = input.trim();
     const mine = ++latest.current;
-    setFailed(false);
+    setFailed(null);
     if (!text) { setResult(null); setLoading(false); return; }
     setLoading(true);
     const timer = setTimeout(async () => {
       try {
         const r = await api('/translate', { method: 'POST', json: { text, from, to } });
         if (mine === latest.current) { setResult(r); setLoading(false); }
-      } catch {
-        if (mine === latest.current) { setResult(null); setFailed(true); setLoading(false); }
+      } catch (err: any) {
+        if (mine === latest.current) {
+          setResult(null);
+          setFailed(err?.payload?.error === 'monthly_limit' ? 'limit' : 'unavailable');
+          setLoading(false);
+        }
       }
     }, TYPING_PAUSE_MS);
     return () => clearTimeout(timer);
@@ -111,7 +115,7 @@ export function TranslateDrawer({ open, onClose }: { open: boolean; onClose: () 
           </>
         ) : (
           <div style={{ color: failed ? 'var(--danger)' : 'var(--text-dim)', fontSize: 12.5 }}>
-            {failed ? t('translate.error') : loading ? t('translate.translating') : t('translate.prompt')}
+            {failed ? t(failed === 'limit' ? 'translate.monthlyLimit' : 'translate.error') : loading ? t('translate.translating') : t('translate.prompt')}
           </div>
         )}
       </div>
