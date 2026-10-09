@@ -374,9 +374,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     // translate drawer (phrasebook chrome only — he/en/ja language names stay as-is, that's the
     // phrasebook's own 3-way selector, unrelated to the app's UI language)
     'translate.title': '訳 תרגום',
-    'translate.inputPlaceholder': 'הקלד/י מילה...',
-    'translate.notFound': 'לא נמצא במילון — נסו לשאול את הסוכן בצ׳אט.',
-    'translate.prompt': 'הקלידו מילה או בחרו ביטוי שימושי למטה.',
+    'translate.inputPlaceholder': 'הקלידו מילה או משפט...',
+    'translate.prompt': 'הקלידו מילה או משפט, או בחרו ביטוי שימושי למטה.',
+    'translate.translating': 'מתרגם…',
+    'translate.error': 'התרגום לא זמין כרגע. בדקו את החיבור ונסו שוב.',
+    'translate.copy': 'העתק',
+    'translate.copied': 'הועתק',
     'translate.usefulPhrases': 'ביטויים שימושיים',
     'translate.toPrefix': 'ל',
 
@@ -750,9 +753,12 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // translate drawer
     'translate.title': '訳 Translate',
-    'translate.inputPlaceholder': 'Type a word...',
-    'translate.notFound': "Not found in the dictionary — try asking the agent in chat.",
-    'translate.prompt': 'Type a word or pick a useful phrase below.',
+    'translate.inputPlaceholder': 'Type a word or sentence...',
+    'translate.prompt': 'Type a word or sentence, or pick a useful phrase below.',
+    'translate.translating': 'Translating…',
+    'translate.error': "Translation isn't available right now. Check your connection and try again.",
+    'translate.copy': 'Copy',
+    'translate.copied': 'Copied',
     'translate.usefulPhrases': 'Useful phrases',
     'translate.toPrefix': 'To ',
 

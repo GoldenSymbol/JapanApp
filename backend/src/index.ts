@@ -23,8 +23,8 @@ app.use(express.json());
 // the other's changes by polling one cheap number (GET /api/sync/rev) instead of reloading everything.
 // The bump happens before the response goes out rather than after it: Cloud Run throttles a
 // container's CPU once a response is sent, so work started afterwards can stall until the next
-// request. Notification read-marks are skipped: they're private to one user, nobody else needs a
-// reload for them.
+// request. Notification read-marks and translation lookups are skipped: they change nothing the other member
+// would see, and a reload for each one would just be churn.
 async function bumpTripRev(userId: string, tripId: string | undefined) {
   const id = tripId ?? (await getMyTrip(userId))?.id;
   if (id) await adminDb.collection("trips").doc(id).update({ rev: FieldValue.increment(1) });
@@ -37,7 +37,7 @@ app.use("/api", (req, res, next) => {
     let bumped = false;
     res.send = ((body?: any) => {
       const userId = (req as AuthedRequest).userId;
-      if (bumped || store.revBumped || res.statusCode >= 400 || !userId || req.path.startsWith("/notifications")) return send(body);
+      if (bumped || store.revBumped || res.statusCode >= 400 || !userId || req.path.startsWith("/notifications") || req.path.startsWith("/translate")) return send(body);
       bumped = true;
       bumpTripRev(userId, store.tripId).catch((err) => console.error("rev bump failed", err)).finally(() => send(body));
       return res;
