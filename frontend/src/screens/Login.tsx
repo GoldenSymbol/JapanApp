@@ -7,6 +7,9 @@ import { Drawer } from '../components/Drawer';
 import logo from '../assets/logo.png';
 import { authErrorText } from '../utils/authErrors';
 
+// About how long the on-screen keyboard takes to finish closing.
+const KEYBOARD_CLOSE_MS = 280;
+
 export function Login() {
   const { login, resetPassword } = useAuth();
   const { t, lang } = useLanguage();
@@ -44,7 +47,16 @@ export function Login() {
     setForgotEmail(email);
     setForgotMsg('');
     setForgotError('');
-    setForgotOpen(true);
+    // Tapping this link while a field is focused makes the keyboard close, which resizes the screen at the
+    // very moment the sheet slides up: the page behind jumps and the whole thing flickers. Closing the
+    // keyboard first and opening once it has gone keeps the two from overlapping.
+    const focused = document.activeElement as HTMLElement | null;
+    if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA')) {
+      focused.blur();
+      setTimeout(() => setForgotOpen(true), KEYBOARD_CLOSE_MS);
+    } else {
+      setForgotOpen(true);
+    }
   }
 
   async function submitForgot() {
