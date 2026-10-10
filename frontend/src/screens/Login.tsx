@@ -9,7 +9,7 @@ import { authErrorText } from '../utils/authErrors';
 
 export function Login() {
   const { login, resetPassword } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +20,7 @@ export function Login() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
   const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotError, setForgotError] = useState('');
 
   async function submit() {
     if (!email.trim() || !password) { setError(t('login.missingFields')); return; }
@@ -42,20 +43,27 @@ export function Login() {
   function openForgot() {
     setForgotEmail(email);
     setForgotMsg('');
+    setForgotError('');
     setForgotOpen(true);
   }
 
   async function submitForgot() {
-    if (!forgotEmail.trim()) { setForgotMsg(t('login.forgotMissingEmail')); return; }
+    const address = forgotEmail.trim();
+    if (!address) { setForgotError(t('login.forgotMissingEmail')); return; }
+    if (forgotBusy) return;
     setForgotBusy(true);
+    setForgotError('');
     try {
-      await resetPassword(forgotEmail.trim());
-    } catch {
-      // Deliberately shown even on failure (e.g. no account with that email) — a different
-      // message here would let anyone probe which emails have accounts (user enumeration).
+      await resetPassword(address, lang);
+      setForgotMsg(t('login.forgotSuccess'));
+    } catch (e: any) {
+      const code: string | undefined = e?.payload?.error;
+      // "No account with that email" must look exactly like success, or anyone could probe which emails
+      // are registered. Real problems (bad address, no connection, too many tries) are worth telling.
+      if (code === 'auth/user-not-found') setForgotMsg(t('login.forgotSuccess'));
+      else setForgotError(code ? authErrorText(t, code) : t('login.genericError'));
     } finally {
       setForgotBusy(false);
-      setForgotMsg(t('login.forgotSuccess'));
     }
   }
 
@@ -103,7 +111,10 @@ export function Login() {
       <Drawer open={forgotOpen} onClose={() => setForgotOpen(false)}>
         <div style={{ font: "600 18px 'Noto Sans Hebrew',sans-serif", marginBottom: 6 }}>{t('login.forgotTitle')}</div>
         {forgotMsg ? (
-          <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>{forgotMsg}</div>
+          <>
+            <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 10 }}>{forgotMsg}</div>
+            <div className="btn btn-outline" style={{ marginTop: 16, textAlign: 'center', padding: 16 }} onClick={() => setForgotOpen(false)}>{t('login.forgotBack')}</div>
+          </>
         ) : (
           <>
             <div style={{ font: "400 13px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 4 }}>
@@ -115,6 +126,7 @@ export function Login() {
                 value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && submitForgot()} />
             </div>
+            {forgotError && <div style={{ font: "400 12.5px/1.5 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', marginTop: 10 }}>{forgotError}</div>}
             <div className="btn btn-accent" style={{ marginTop: 16, textAlign: 'center', padding: 16, opacity: forgotBusy ? 0.6 : 1 }} onClick={submitForgot}>
               {t('login.forgotSubmit')}
             </div>

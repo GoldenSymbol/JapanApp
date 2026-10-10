@@ -42,6 +42,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'login.forgotSubmit': 'שלח קישור לאיפוס',
     'login.forgotSuccess': 'אם קיים חשבון עם האימייל הזה, נשלח אליו קישור לאיפוס סיסמה',
     'login.forgotMissingEmail': 'נא להזין כתובת אימייל',
+    'login.forgotBack': 'חזרה להתחברות',
 
     // signup
     'signup.title': 'יצירת חשבון',
@@ -422,6 +423,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'login.forgotTitle': 'Reset password',
     'login.forgotDesc': "Enter your email and we'll send you a link to reset your password.",
     'login.forgotSubmit': 'Send reset link',
+    'login.forgotBack': 'Back to sign in',
     'login.forgotSuccess': "If an account exists for this email, we've sent a password reset link to it",
     'login.forgotMissingEmail': 'Please enter an email address',
 
