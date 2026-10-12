@@ -12,7 +12,7 @@ const KEYBOARD_CLOSE_MS = 280;
 
 export function Login() {
   const { login, resetPassword } = useAuth();
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,7 +66,7 @@ export function Login() {
     setForgotBusy(true);
     setForgotError('');
     try {
-      await resetPassword(address, lang);
+      await resetPassword(address);
       setForgotMsg(t('login.forgotSuccess'));
     } catch (e: any) {
       const code: string | undefined = e?.payload?.error;

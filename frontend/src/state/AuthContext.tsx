@@ -33,7 +33,7 @@ interface AuthState {
   currentTermsVersion: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
-  resetPassword: (email: string, lang: 'he' | 'en') => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => void;
   createTrip: () => Promise<void>;
   joinTrip: (code: string) => Promise<void>;
@@ -143,10 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadProfile]);
 
-  const resetPassword = useCallback(async (email: string, lang: 'he' | 'en') => {
+  const resetPassword = useCallback(async (email: string) => {
     try {
-      // The email (and Firebase's reset page) come in the app's language; Firebase calls Hebrew "iw".
-      auth.languageCode = lang === 'he' ? 'iw' : 'en';
+      // The reset email and Firebase's reset page are always English, whatever language the app is in, so
+      // there is a single template (edited in the Firebase console, Authentication > Templates) to keep.
+      auth.languageCode = 'en';
       // `url` is where the "Continue" button on Firebase's confirmation page leads, so the user returns
       // to the app's sign-in screen instead of being left on a generic page.
       await sendPasswordResetEmail(auth, email, { url: `${window.location.origin}/login`, handleCodeInApp: false });
