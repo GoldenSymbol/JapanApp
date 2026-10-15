@@ -179,7 +179,6 @@ export function Settings() {
           <div key={c} onClick={() => updateMe({ baseCurrency: c })} className="pill" style={{ cursor: 'pointer', border: `1px solid ${user.baseCurrency === c ? 'var(--accent)' : 'var(--border)'}`, color: user.baseCurrency === c ? 'var(--accent)' : 'var(--text)' }}>{t(`currency.${c}`)}</div>
         ))}
       </div>
-      <div style={{ padding: '8px 22px 0', fontSize: 12, lineHeight: 1.5, color: 'var(--text-dim-2)' }}>{t('settings.currencyHint')}</div>
 
       <div className="section-label" style={{ padding: '26px 22px 6px' }}>{t('settings.notifHeader')}</div>
       <div style={{ padding: '0 22px' }}>
