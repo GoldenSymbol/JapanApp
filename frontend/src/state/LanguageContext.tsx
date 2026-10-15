@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { translations, type Lang } from '../i18n/translations';
-import { JaPlanLoader } from '../components/JaPlanLoader';
+import { LoaderOverlay } from '../components/LoaderOverlay';
 
 export const LANG_STORAGE_KEY = 'jpn2027_lang';
 
@@ -26,7 +26,11 @@ function interpolate(template: string, vars?: Record<string, string | number>) {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { user, updateMe } = useAuth();
-  const lang: Lang = (user ? user.uiLang : localStorage.getItem(LANG_STORAGE_KEY)) === 'en' ? 'en' : 'he';
+  // Before an account exists the choice lives in localStorage; mirrored in state so changing it re-renders.
+  const [guestLang, setGuestLang] = useState<Lang>(() => {
+    try { return localStorage.getItem(LANG_STORAGE_KEY) === 'en' ? 'en' : 'he'; } catch { return 'he'; }
+  });
+  const lang: Lang = (user ? user.uiLang : guestLang) === 'en' ? 'en' : 'he';
   const dir = lang === 'en' ? 'ltr' : 'rtl';
   // For a signed-in user the switch is saved to their profile first and only then takes effect, so
   // cover the wait with the loader instead of leaving the old language sitting there unchanged.
@@ -41,11 +45,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     lang,
     dir,
     setLang: (v: Lang) => {
-      if (!user) { localStorage.setItem(LANG_STORAGE_KEY, v); return; }
       if (v === lang) return;
       setSwitchingTo(v);
+      let save: Promise<unknown> = Promise.resolve();
+      if (user) save = updateMe({ uiLang: v }).catch(() => {});
+      else {
+        try { localStorage.setItem(LANG_STORAGE_KEY, v); } catch { /* storage unavailable: still applies for this visit */ }
+        setGuestLang(v);
+      }
       // Held for a moment even when the save is instant, so it reads as a transition, not a flash.
-      Promise.all([updateMe({ uiLang: v }).catch(() => {}), new Promise((r) => setTimeout(r, 700))])
+      Promise.all([save, new Promise((r) => setTimeout(r, 700))])
         .finally(() => setSwitchingTo(null));
     },
     t: (key: string, vars?: Record<string, string | number>) => {
@@ -60,11 +69,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      {switchingTo && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <JaPlanLoader size={200} label={switchingTo === 'en' ? 'Switching language…' : 'מחליף שפה…'} />
-        </div>
-      )}
+      {switchingTo && <LoaderOverlay label={switchingTo === 'en' ? 'Switching language…' : 'מחליף שפה…'} />}
     </Ctx.Provider>
   );
 }

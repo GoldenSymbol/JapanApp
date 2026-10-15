@@ -46,6 +46,7 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // signup
     'signup.title': 'יצירת חשבון',
+    'signup.creating': 'יוצר את החשבון שלך…',
     'signup.name': 'שם',
     'signup.namePlaceholder': 'איך לקרוא לך',
     'signup.passwordPlaceholder': 'לפחות 8 תווים',
@@ -429,6 +430,7 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // signup
     'signup.title': 'Create account',
+    'signup.creating': 'Creating your account…',
     'signup.name': 'Name',
     'signup.namePlaceholder': 'What should we call you',
     'signup.passwordPlaceholder': 'At least 8 characters',

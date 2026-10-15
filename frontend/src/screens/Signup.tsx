@@ -4,6 +4,7 @@ import { useAuth } from '../state/AuthContext';
 import { useLanguage } from '../state/LanguageContext';
 import { ApiError } from '../api';
 import { authErrorText } from '../utils/authErrors';
+import { LoaderOverlay } from '../components/LoaderOverlay';
 
 export function Signup() {
   const { signup } = useAuth();
@@ -85,6 +86,7 @@ export function Signup() {
         <Link to="/privacy" style={{ color: 'var(--accent)', fontWeight: 600 }}>{t('common.privacy')}</Link>.
       </div>
 
+      {busy && <LoaderOverlay label={t('signup.creating')} />}
       {error && <div style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', marginTop: 12 }}>{error}</div>}
       <div className="btn btn-accent" style={{ marginTop: 16, textAlign: 'center', padding: 16, opacity: busy ? 0.6 : 1 }} onClick={submit}>
         {t('signup.submit')}
