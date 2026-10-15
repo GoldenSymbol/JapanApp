@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { translations, type Lang } from '../i18n/translations';
+import { JaPlanLoader } from '../components/JaPlanLoader';
 
 export const LANG_STORAGE_KEY = 'jpn2027_lang';
 
@@ -27,6 +28,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const { user, updateMe } = useAuth();
   const lang: Lang = (user ? user.uiLang : localStorage.getItem(LANG_STORAGE_KEY)) === 'en' ? 'en' : 'he';
   const dir = lang === 'en' ? 'ltr' : 'rtl';
+  // For a signed-in user the switch is saved to their profile first and only then takes effect, so
+  // cover the wait with the loader instead of leaving the old language sitting there unchanged.
+  const [switchingTo, setSwitchingTo] = useState<Lang | null>(null);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -37,8 +41,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     lang,
     dir,
     setLang: (v: Lang) => {
-      if (user) updateMe({ uiLang: v });
-      else localStorage.setItem(LANG_STORAGE_KEY, v);
+      if (!user) { localStorage.setItem(LANG_STORAGE_KEY, v); return; }
+      if (v === lang) return;
+      setSwitchingTo(v);
+      // Held for a moment even when the save is instant, so it reads as a transition, not a flash.
+      Promise.all([updateMe({ uiLang: v }).catch(() => {}), new Promise((r) => setTimeout(r, 700))])
+        .finally(() => setSwitchingTo(null));
     },
     t: (key: string, vars?: Record<string, string | number>) => {
       const dict = translations[lang];
@@ -49,7 +57,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       lang === 'en' && entity.nameEn ? entity.nameEn : entity.nameHe,
   }), [lang, dir, user, updateMe]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      {switchingTo && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <JaPlanLoader size={200} label={switchingTo === 'en' ? 'Switching language…' : 'מחליף שפה…'} />
+        </div>
+      )}
+    </Ctx.Provider>
+  );
 }
 
 export function useLanguage() {
