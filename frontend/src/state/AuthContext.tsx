@@ -32,7 +32,7 @@ interface AuthState {
   // RequireAuth in App.tsx. Null until the first authenticated response comes back.
   currentTermsVersion: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, uiLang?: 'he' | 'en') => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => void;
   createTrip: () => Promise<void>;
@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Called only after Signup.tsx has confirmed the terms checkbox was checked — this always
   // records acceptance of the current terms right after creating the profile, in the same flow,
   // rather than leaving a freshly-created account to hit the terms gate on its very first screen.
-  const signup = useCallback(async (name: string, email: string, password: string) => {
+  const signup = useCallback(async (name: string, email: string, password: string, uiLang: 'he' | 'en' = 'he') => {
     if (password.length < 8) throw new ApiError(400, { error: 'weak_password', message: 'הסיסמה צריכה להיות לפחות 8 תווים' });
     let cred;
     explicitLoadInFlight.current = true;
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (e: any) {
         throw toApiError(e);
       }
-      await api('/auth/bootstrap', { method: 'POST', json: { name, email } });
+      await api('/auth/bootstrap', { method: 'POST', json: { name, email, uiLang } });
       const data = await api('/auth/accept-terms', { method: 'POST' });
       setUser(data.user); setCurrentTermsVersion(data.currentTermsVersion);
       setTrip(null);

@@ -7,7 +7,7 @@ import { authErrorText } from '../utils/authErrors';
 
 export function Signup() {
   const { signup } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -22,7 +22,7 @@ export function Signup() {
     if (!agreedToTerms) { setError(t('signup.mustAgree')); return; }
     setError(''); setBusy(true);
     try {
-      await signup(name.trim(), email.trim(), password);
+      await signup(name.trim(), email.trim(), password, lang);
       navigate('/choose');
     } catch (e) {
       if (e instanceof ApiError) {
@@ -40,7 +40,15 @@ export function Signup() {
     <div className="app-shell" style={{ justifyContent: 'center', padding: '0 26px 40px' }}>
       <Link to="/login" style={{ font: "500 13px 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', padding: '8px 0' }}>{t('common.back')}</Link>
       <div style={{ font: "600 27px/1.25 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.4px', marginTop: 20 }}>{t('signup.title')}</div>
-      <div style={{ marginTop: 26 }}>
+      <div style={{ marginTop: 22 }}>
+        <div className="section-label" style={{ paddingBottom: 9 }}>{t('settings.language')}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([{ key: 'he', label: 'עברית' }, { key: 'en', label: 'English' }] as const).map((l) => (
+            <div key={l.key} onClick={() => setLang(l.key)} className="pill" style={{ flex: 1, textAlign: 'center', padding: 12, cursor: 'pointer', border: `1.5px solid ${lang === l.key ? 'var(--accent)' : 'var(--border)'}`, color: lang === l.key ? 'var(--accent)' : 'var(--text)' }}>{l.label}</div>
+          ))}
+        </div>
+      </div>
+      <div style={{ marginTop: 14 }}>
         <div className="section-label" style={{ paddingBottom: 9 }}>{t('signup.name')}</div>
         <input className="field" placeholder={t('signup.namePlaceholder')} value={name} onChange={(e) => setName(e.target.value)} />
       </div>
