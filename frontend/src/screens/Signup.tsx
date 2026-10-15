@@ -14,12 +14,14 @@ export function Signup() {
   const [showPw, setShowPw] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     if (!name.trim() || !email.trim() || !password) { setError(t('signup.missingFields')); return; }
+    if (password !== confirmPassword) { setError(t('signup.passwordMismatch')); return; }
     if (!agreedToTerms) { setError(t('signup.mustAgree')); return; }
     setError(''); setBusy(true);
     try {
@@ -66,7 +68,12 @@ export function Signup() {
           </div>
         </div>
         <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} type={showPw ? 'text' : 'password'} placeholder={t('signup.passwordPlaceholder')} value={password}
-          onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
+          autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} />
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <div className="section-label" style={{ paddingBottom: 9 }}>{t('signup.confirmPassword')}</div>
+        <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} type={showPw ? 'text' : 'password'} placeholder={t('signup.confirmPasswordPlaceholder')} value={confirmPassword}
+          autoComplete="new-password" onChange={(e) => setConfirmPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
       </div>
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }} onClick={() => setAgreedToTerms((v) => !v)}>
         <div style={{
