@@ -20,7 +20,8 @@ const PALETTE_SWATCHES: Record<string, string[]> = {
 };
 const PREF_KEYS = ['weather', 'offlineSave', 'autoSync'] as const;
 const NOTIF_KEYS = ['newAttraction', 'newDestination', 'reschedule', 'newExpense'] as const;
-const UI_LANGS: { key: Lang; label: string }[] = [{ key: 'he', label: 'עברית' }, { key: 'en', label: 'English' }];
+// Rendered in a pinned-LTR row (English left, Hebrew right) so the buttons keep their sides when the UI direction flips.
+const UI_LANGS: { key: Lang; label: string }[] = [{ key: 'en', label: 'English' }, { key: 'he', label: 'עברית' }];
 const CURRENCY_KEYS = ['ILS', 'JPY', 'USD', 'EUR'] as const;
 
 function Toggle({ on }: { on: boolean }) {
@@ -153,7 +154,7 @@ export function Settings() {
       )}
 
       <div className="section-label" style={{ padding: '26px 22px 10px' }}>{t('settings.language')}</div>
-      <div style={{ padding: '0 22px', display: 'flex', gap: 8 }}>
+      <div dir="ltr" style={{ padding: '0 22px', display: 'flex', gap: 8 }}>
         {UI_LANGS.map((l) => (
           <div key={l.key} onClick={() => setLang(l.key)} className="pill" style={{ flex: 1, textAlign: 'center', padding: 13, cursor: 'pointer', border: `1.5px solid ${lang === l.key ? 'var(--accent)' : 'var(--border)'}`, color: lang === l.key ? 'var(--accent)' : 'var(--text)' }}>{l.label}</div>
         ))}

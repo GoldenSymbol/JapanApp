@@ -42,8 +42,9 @@ export function Signup() {
       <div style={{ font: "600 27px/1.25 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.4px', marginTop: 20 }}>{t('signup.title')}</div>
       <div style={{ marginTop: 22 }}>
         <div className="section-label" style={{ paddingBottom: 9 }}>{t('settings.language')}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {([{ key: 'he', label: 'עברית' }, { key: 'en', label: 'English' }] as const).map((l) => (
+        {/* Pinned LTR (English left, Hebrew right) so the two buttons don't swap sides when the UI direction flips. */}
+        <div dir="ltr" style={{ display: 'flex', gap: 8 }}>
+          {([{ key: 'en', label: 'English' }, { key: 'he', label: 'עברית' }] as const).map((l) => (
             <div key={l.key} onClick={() => setLang(l.key)} className="pill" style={{ flex: 1, textAlign: 'center', padding: 12, cursor: 'pointer', border: `1.5px solid ${lang === l.key ? 'var(--accent)' : 'var(--border)'}`, color: lang === l.key ? 'var(--accent)' : 'var(--text)' }}>{l.label}</div>
           ))}
         </div>
