@@ -1,17 +1,19 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useLanguage } from '../state/LanguageContext';
 import { TripIcon, MapPinIcon, CalendarIcon, CardIcon, FolderIcon } from './Icons';
 
 // Rendered right-to-left (RTL layout), so the LAST entry here ends up as the LEFTMOST tab.
 const TABS = [
-  { path: '/trip', label: 'מסלול', Icon: TripIcon },
-  { path: '/map', label: 'מפה', Icon: MapPinIcon },
-  { path: '/today', label: 'היום', Icon: CalendarIcon },
-  { path: '/budget', label: 'תקציב', Icon: CardIcon },
-  { path: '/documents', label: 'מסמכים', Icon: FolderIcon },
+  { path: '/trip', labelKey: 'nav.trip', Icon: TripIcon },
+  { path: '/map', labelKey: 'nav.map', Icon: MapPinIcon },
+  { path: '/today', labelKey: 'nav.today', Icon: CalendarIcon },
+  { path: '/budget', labelKey: 'nav.budget', Icon: CardIcon },
+  { path: '/documents', labelKey: 'nav.documents', Icon: FolderIcon },
 ];
 
 export function BottomNav() {
+  const { t } = useLanguage();
   return (
     <div style={{
       position: 'fixed', left: 16, right: 16, bottom: 'calc(16px + env(safe-area-inset-bottom))',
@@ -21,8 +23,8 @@ export function BottomNav() {
       backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
       border: '1px solid var(--border-soft)', boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
     }}>
-      {TABS.map(({ path, Icon }) => (
-        <NavLink key={path} to={path} style={{ textDecoration: 'none', flex: 1 }}>
+      {TABS.map(({ path, labelKey, Icon }) => (
+        <NavLink key={path} to={path} aria-label={t(labelKey)} title={t(labelKey)} style={{ textDecoration: 'none', flex: 1 }}>
           {({ isActive }) => (
             <div style={{
               position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center',

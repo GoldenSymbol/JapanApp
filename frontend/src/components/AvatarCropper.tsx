@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../state/LanguageContext';
 import { cropToAvatarDataUrl, loadAvatarSource, type AvatarSource } from '../utils/avatarImage';
 
@@ -31,16 +31,16 @@ export function AvatarCropper({ file, onSave, onCancel, onError }: {
   // Scale at which the picture just covers the frame; `zoom` multiplies it.
   const base = source ? VIEW / Math.min(source.width, source.height) : 1;
   const scale = base * zoom;
-  const clampOffset = (o: { x: number; y: number }, z: number) => {
+  const clampOffset = useCallback((o: { x: number; y: number }, z: number) => {
     if (!source) return o;
     const maxX = Math.max(0, (source.width * base * z - VIEW) / 2);
     const maxY = Math.max(0, (source.height * base * z - VIEW) / 2);
     return { x: Math.min(maxX, Math.max(-maxX, o.x)), y: Math.min(maxY, Math.max(-maxY, o.y)) };
-  };
+  }, [source, base]);
   const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(1, z));
 
   // Zooming out can leave the picture off-centre past its new edges.
-  useEffect(() => { setOffset((o) => clampOffset(o, zoom)); }, [zoom, source]);
+  useEffect(() => { setOffset((o) => clampOffset(o, zoom)); }, [zoom, clampOffset]);
 
   function onPointerDown(e: React.PointerEvent) {
     e.currentTarget.setPointerCapture(e.pointerId);

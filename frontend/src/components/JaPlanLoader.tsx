@@ -8,7 +8,7 @@ export type JaPlanLoaderProps = {
   className?: string;
 };
 
-export function JaPlanLoader({ loading = true, size = 220, label = 'טוען את JaPlan…', className = '' }: JaPlanLoaderProps) {
+export function JaPlanLoader({ loading = true, size = 220, label = 'טוען את MichiPlan…', className = '' }: JaPlanLoaderProps) {
   if (!loading) return null;
   return (
     <div className={`japlan-loader ${className}`} role="status" aria-live="polite" style={{ width: size, maxWidth: '100%' }}>

@@ -9,7 +9,7 @@ const FALLBACK_USD_RATES: Record<string, number> = { USD: 1, ILS: 1 / 0.27, JPY:
 
 async function fetchLiveRates(): Promise<Record<string, number> | null> {
   try {
-    const res = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${CURRENCIES.filter((c) => c !== "USD").join(",")}`);
+    const res = await fetch(`https://api.frankfurter.dev/v1/latest?from=USD&to=${CURRENCIES.filter((c) => c !== "USD").join(",")}`);
     if (!res.ok) return null;
     const data = (await res.json()) as { rates: Record<string, number> };
     return { USD: 1, ...data.rates };

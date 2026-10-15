@@ -70,9 +70,10 @@ export function Today() {
   // switching between days within the same city needs no request at all either way, since that's
   // just re-filtering the same array in memory below.
   const attractions = dest ? attractionsByDestination[dest.id] || [] : [];
+  const destId = dest?.id;
   useEffect(() => {
-    if (dest) ensureAttractions(dest.id);
-  }, [dest?.id, ensureAttractions]);
+    if (destId) ensureAttractions(destId);
+  }, [destId, ensureAttractions]);
 
   useEffect(() => {
     if (!railRef.current || !date) return;

@@ -37,6 +37,9 @@ async function fetchDrivingRoute(points: [number, number][]): Promise<[number, n
   }
 }
 
+// Stable empty list so memos keyed on `spots` don't recompute every render while a city loads.
+const NO_SPOTS: never[] = [];
+
 export function MapScreen() {
   const { destinations } = useTripData();
   const { dark } = useTheme();
@@ -166,7 +169,7 @@ function CityMap({ cityId, setCityId, dark, placeAttractionId, onDonePlacing }: 
   const { t, displayName } = useLanguage();
   const [route, setRoute] = useState<string[]>([]);
   const city = destinations.find((d) => d.id === cityId);
-  const spots = attractionsByDestination[cityId || ''] || [];
+  const spots = attractionsByDestination[cityId || ''] ?? NO_SPOTS;
   // A place visited more than once (e.g. Tokyo, then Tokyo again at the end) shares a groupId —
   // show it once in the city switcher instead of once per visit, since they're the same place.
   const uniqueCities = useMemo(() => {

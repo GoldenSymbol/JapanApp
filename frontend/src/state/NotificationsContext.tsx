@@ -88,7 +88,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           };
         })
         .filter((n: any) => !n.deletedBy.includes(myId))
-        .map(({ deletedBy, ...n }: any) => n);
+        .map(({ deletedBy: _deletedBy, ...n }: any) => n);
 
       if (!isFirstLoad.current) {
         const added = snap.docChanges().filter((c) => c.type === 'added');

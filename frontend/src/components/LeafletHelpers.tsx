@@ -4,15 +4,18 @@ import L from 'leaflet';
 
 export function FitBounds({ points, padding = 0.25 }: { points: [number, number][]; padding?: number }) {
   const map = useMap();
+  // Keyed by content so a new-but-identical array from the parent doesn't re-fit the map.
+  const pointsKey = JSON.stringify(points);
   useEffect(() => {
-    if (points.length === 0) return;
-    if (points.length === 1) {
-      map.setView(points[0], 12);
+    const pts = JSON.parse(pointsKey) as [number, number][];
+    if (pts.length === 0) return;
+    if (pts.length === 1) {
+      map.setView(pts[0], 12);
       return;
     }
-    const bounds = L.latLngBounds(points);
+    const bounds = L.latLngBounds(pts);
     map.fitBounds(bounds.pad(padding));
-  }, [JSON.stringify(points)]);
+  }, [pointsKey, map, padding]);
   return null;
 }
 

@@ -26,7 +26,7 @@ function Splash() {
   const { lang } = useLanguage();
   return (
     <div className="app-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <JaPlanLoader size={200} label={lang === 'en' ? 'Loading JaPlan…' : 'טוען את JaPlan…'} />
+      <JaPlanLoader size={200} label={lang === 'en' ? 'Loading MichiPlan…' : 'טוען את MichiPlan…'} />
     </div>
   );
 }

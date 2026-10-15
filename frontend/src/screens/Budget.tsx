@@ -113,11 +113,11 @@ function PieChart({ slices, size = 200 }: { slices: { label: string; value: numb
       </svg>
     );
   }
-  let cumulative = 0;
-  const paths = slices.filter((s) => s.value > 0).map((s, i) => {
-    const startAngle = (cumulative / total) * 2 * Math.PI;
-    cumulative += s.value;
-    const endAngle = (cumulative / total) * 2 * Math.PI;
+  const visible = slices.filter((s) => s.value > 0);
+  const paths = visible.map((s, i) => {
+    const before = visible.slice(0, i).reduce((sum, x) => sum + x.value, 0);
+    const startAngle = (before / total) * 2 * Math.PI;
+    const endAngle = ((before + s.value) / total) * 2 * Math.PI;
     const x1 = radius + radius * Math.sin(startAngle);
     const y1 = radius - radius * Math.cos(startAngle);
     const x2 = radius + radius * Math.sin(endAngle);
@@ -227,7 +227,7 @@ function HistoryList({ basePath, sym, cur, editing, data, onChanged }: {
   }
   // The latest totals, for the async paths above that outlive a render.
   const dataRef = useRef(data);
-  dataRef.current = data;
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   function startDelete(entry: HistoryEntry) {
     if (!entries) return;

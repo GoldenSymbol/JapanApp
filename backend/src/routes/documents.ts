@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { adminDb, adminBucket } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
-import { getUserName } from "../users.js";
+import { getUserName, getUserDoc } from "../users.js";
 
 export const documentsRouter = Router();
 
@@ -13,7 +13,10 @@ export const documentsRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 const FOLDER_COLORS = ["#D9564B", "#6FA8DC", "#7FB069", "#D9A441", "#C77DBB", "#4EA8A0", "#B98AE3"];
-const DEFAULT_FOLDERS = ["טיסות", "מלונות", "כרטיסים", "הזמנות"];
+const DEFAULT_FOLDERS: Record<"he" | "en", string[]> = {
+  he: ["טיסות", "מלונות", "כרטיסים", "הזמנות"],
+  en: ["Flights", "Hotels", "Tickets", "Bookings"],
+};
 
 function tripRef(tripId: string) {
   return adminDb.collection("trips").doc(tripId);
@@ -40,10 +43,10 @@ async function fetchFolders(tripId: string) {
 // trip have any folders yet" existence check ahead of the real fetch below, on every single load
 // forever — not just the one time it can ever actually matter — adding a full extra sequential
 // round trip to the common case where folders (obviously) already exist.
-async function ensureDefaultFolders(tripId: string, existingFolders: any[]) {
+async function ensureDefaultFolders(tripId: string, existingFolders: any[], lang: "he" | "en") {
   if (existingFolders.length > 0) return existingFolders;
   const batch = adminDb.batch();
-  DEFAULT_FOLDERS.forEach((name, i) => {
+  DEFAULT_FOLDERS[lang].forEach((name, i) => {
     const ref = tripRef(tripId).collection("documentFolders").doc();
     batch.set(ref, { name, colorKey: FOLDER_COLORS[i % FOLDER_COLORS.length], orderIndex: i, createdAt: new Date() });
   });
@@ -58,7 +61,10 @@ documentsRouter.get("/documents/folders", requireAuth, async (req: AuthedRequest
     fetchFolders(trip.id),
     tripRef(trip.id).collection("documents").get(),
   ]);
-  const folders = await ensureDefaultFolders(trip.id, fetchedFolders);
+  // Only look the user up in the one-time case where defaults actually get created.
+  let lang: "he" | "en" = "he";
+  if (fetchedFolders.length === 0) lang = (await getUserDoc(req.userId!))?.uiLang === "en" ? "en" : "he";
+  const folders = await ensureDefaultFolders(trip.id, fetchedFolders, lang);
   const countByFolder = new Map<string, number>();
   for (const doc of docsSnap.docs) {
     const folderId = doc.data().folderId;
