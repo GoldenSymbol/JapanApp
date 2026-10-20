@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile,
+  createUserWithEmailAndPassword, EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase';
 import { api, ApiError, isServerUnreachable } from '../api';
-import { loadAuthSnapshot, saveAuthSnapshot } from './offlineCache';
+import { clearOfflineData, loadAuthSnapshot, saveAuthSnapshot } from './offlineCache';
 
 export interface User {
   id: string;
@@ -35,6 +35,8 @@ interface AuthState {
   signup: (name: string, email: string, password: string, uiLang?: 'he' | 'en') => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => void;
+  // Permanently deletes the signed-in account after re-checking the password.
+  deleteAccount: (password: string) => Promise<void>;
   createTrip: () => Promise<void>;
   joinTrip: (code: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -188,6 +190,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut(auth);
   }, []);
 
+  const deleteAccount = useCallback(async (password: string) => {
+    const fbUser = auth.currentUser;
+    if (!fbUser?.email) throw new ApiError(401, { error: 'auth/requires-recent-login' });
+    try {
+      await reauthenticateWithCredential(fbUser, EmailAuthProvider.credential(fbUser.email, password));
+      // So the server sees a sign-in time from just now, not from whenever this session began.
+      await fbUser.getIdToken(true);
+    } catch (e: any) {
+      throw toApiError(e);
+    }
+    await api('/auth/me', { method: 'DELETE' });
+    await clearOfflineData();
+    setUser(null); setTrip(null);
+    try { await signOut(auth); } catch { /* the account is already gone server-side */ }
+  }, []);
+
   const createTrip = useCallback(async () => {
     const data = await api('/trips', { method: 'POST', json: {} });
     setTrip(data.trip);
@@ -204,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, trip, loading, currentTermsVersion, login, signup, resetPassword, logout, createTrip, joinTrip, refresh: loadProfile, updateMe, acceptTerms }}>
+    <Ctx.Provider value={{ user, trip, loading, currentTermsVersion, login, signup, resetPassword, logout, deleteAccount, createTrip, joinTrip, refresh: loadProfile, updateMe, acceptTerms }}>
       {children}
     </Ctx.Provider>
   );

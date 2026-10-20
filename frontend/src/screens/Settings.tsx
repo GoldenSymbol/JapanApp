@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { api } from '../api';
+import { api, ApiError } from '../api';
+import { authErrorText } from '../utils/authErrors';
+import { LoaderOverlay } from '../components/LoaderOverlay';
 import { useAuth } from '../state/AuthContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
@@ -33,13 +35,17 @@ function Toggle({ on }: { on: boolean }) {
 }
 
 export function Settings() {
-  const { user, updateMe, logout } = useAuth();
+  const { user, updateMe, logout, deleteAccount } = useAuth();
   const { dark, palette, setDark, setPalette } = useTheme();
   const { lang, setLang, t } = useLanguage();
   const { tripMeta } = useTripData();
   const navigate = useNavigate();
   const memberCount = tripMeta?.members.length || 1;
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePw, setDeletePw] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const photoInput = useRef<HTMLInputElement>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState(false);
@@ -79,6 +85,23 @@ export function Settings() {
     await api('/trips/leave', { method: 'POST' });
     setLeaveOpen(false);
     navigate('/choose');
+  }
+
+  function closeDelete() {
+    if (deleteBusy) return;
+    setDeleteOpen(false); setDeletePw(''); setDeleteError('');
+  }
+  async function confirmDelete() {
+    if (!deletePw || deleteBusy) return;
+    setDeleteBusy(true); setDeleteError('');
+    try {
+      await deleteAccount(deletePw);
+      navigate('/login');
+    } catch (e) {
+      const code = e instanceof ApiError ? e.payload?.error : null;
+      setDeleteError(code && String(code).startsWith('auth/') ? authErrorText(t, code) : t('settings.deleteAccountError'));
+      setDeleteBusy(false);
+    }
   }
 
   return (
@@ -195,6 +218,7 @@ export function Settings() {
       <div style={{ padding: '26px 22px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="btn" style={{ border: '1px solid rgba(217,86,75,.4)', color: 'var(--danger)', textAlign: 'center', padding: 15 }} onClick={() => setLeaveOpen(true)}>{t('settings.leaveTrip')}</div>
         <div className="btn btn-outline" style={{ textAlign: 'center', padding: 15 }} onClick={() => { logout(); navigate('/login'); }}>{t('settings.logout')}</div>
+        <div onClick={() => setDeleteOpen(true)} style={{ font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', textAlign: 'center', padding: '10px 0 2px', cursor: 'pointer', textDecoration: 'underline' }}>{t('settings.deleteAccount')}</div>
         <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)', textAlign: 'center', paddingTop: 6 }}>{t('settings.version')}</div>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)' }}>
           <span onClick={() => navigate('/terms')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>{t('common.terms')}</span>
@@ -227,6 +251,41 @@ export function Settings() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteOpen && (
+          <motion.div
+            className="drawer-overlay" style={{ alignItems: 'center' }} onClick={closeDelete}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: 'calc(100% - 52px)', maxWidth: 400, maxHeight: '86vh', overflow: 'auto', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 22, padding: 22 }}
+              initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 380 }}
+            >
+              <div style={{ font: "600 18px/1.3 'Noto Sans Hebrew',sans-serif" }}>{t('settings.deleteAccountTitle')}</div>
+              <div style={{ font: "400 12.5px/1.65 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 9 }}>
+                <div>{t('settings.deleteAccountDesc1')}</div>
+                <div style={{ marginTop: 8 }}>{t('settings.deleteAccountDesc2')}</div>
+                <div style={{ marginTop: 8, color: 'var(--danger)', fontWeight: 600 }}>{t('settings.deleteAccountDesc3')}</div>
+              </div>
+              <input
+                className="field" type="password" autoComplete="current-password" dir="ltr"
+                style={{ marginTop: 16, textAlign: 'left' }} placeholder={t('settings.deleteAccountPassword')}
+                value={deletePw} onChange={(e) => setDeletePw(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && confirmDelete()}
+              />
+              {deleteError && <div style={{ font: "500 12px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', marginTop: 10 }}>{deleteError}</div>}
+              <div style={{ display: 'flex', gap: 9, marginTop: 18 }}>
+                <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }} onClick={closeDelete}>{t('common.cancel')}</div>
+                <div className="btn btn-accent" style={{ flex: 1, textAlign: 'center', background: 'var(--danger)', opacity: !deletePw || deleteBusy ? 0.5 : 1 }} onClick={confirmDelete}>{t('settings.deleteAccountConfirm')}</div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {deleteBusy && <LoaderOverlay label={t('settings.deleteAccountBusy')} />}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { TERMS_VERSION } from "./legal.js";
 
 export interface AuthedRequest extends Request {
   userId?: string;
+  // When the token's holder last actually signed in (seconds since epoch), per Firebase.
+  authTime?: number;
 }
 
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
@@ -14,6 +16,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
   try {
     const decoded = await adminAuth.verifyIdToken(token);
     req.userId = decoded.uid;
+    req.authTime = decoded.auth_time;
     next();
   } catch {
     return res.status(401).json({ error: "invalid_token" });

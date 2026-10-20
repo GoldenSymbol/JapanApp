@@ -87,3 +87,14 @@ export async function loadAuthSnapshot(uid: string): Promise<AuthSnapshot | null
     return null;
   }
 }
+
+// Wipes everything saved on this device for offline use — used when an account is deleted, so
+// nothing of that person's trip or profile is left behind in the browser.
+export async function clearOfflineData() {
+  try {
+    const db = await getDb();
+    await Promise.all([db.clear(TRIP_STORE), db.clear(AUTH_STORE)]);
+  } catch {
+    // Nothing useful to do if storage is unavailable; there is also nothing saved then.
+  }
+}

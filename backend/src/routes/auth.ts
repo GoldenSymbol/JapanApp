@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip } from "../context.js";
 import { publicUser, ensureUser, getUserDoc, patchUser } from "../users.js";
+import { deleteAccount } from "../accountDeletion.js";
 import { recordTermsAcceptance } from "../consent.js";
 import { TERMS_VERSION } from "../legal.js";
 
@@ -64,4 +65,16 @@ authRouter.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
   }
   const user = Object.keys(patch).length ? await patchUser(req.userId!, patch) : await getUserDoc(req.userId!);
   res.json({ user: publicUser(req.userId!, user!) });
+});
+
+// Permanent account deletion. The app re-asks for the password first and sends a fresh token; this
+// insists on it too (signed in within the last 5 minutes) so a stolen or left-open session alone
+// can't wipe an account. Not gated by the terms check, like the rest of this router.
+const RECENT_LOGIN_SECONDS = 5 * 60;
+authRouter.delete("/me", requireAuth, async (req: AuthedRequest, res) => {
+  if (!req.authTime || Date.now() / 1000 - req.authTime > RECENT_LOGIN_SECONDS) {
+    return res.status(403).json({ error: "recent_login_required" });
+  }
+  await deleteAccount(req.userId!);
+  res.json({ ok: true });
 });
