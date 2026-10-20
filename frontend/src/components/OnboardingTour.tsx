@@ -1,22 +1,43 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLanguage } from '../state/LanguageContext';
-import { CardIcon, CheckIcon, MapPinIcon, TranslateIcon, TripIcon } from './Icons';
+import { CardIcon, CheckIcon, FolderIcon, MapPinIcon, TranslateIcon, TripIcon } from './Icons';
 
-// Four short slides shown once to every user (and again from Settings). Copy lives in the
+// Short slides shown once to every user (and again from Settings). Copy lives in the
 // dictionaries under `tour.*` so it follows the UI language like everything else.
 const SLIDES = [
-  { key: 'route', Icon: TripIcon, Icon2: MapPinIcon },
-  { key: 'mark', Icon: CheckIcon, Icon2: null },
-  { key: 'budget', Icon: CardIcon, Icon2: null },
-  { key: 'translate', Icon: TranslateIcon, Icon2: null },
+  { key: 'route', Icon: TripIcon },
+  { key: 'map', Icon: MapPinIcon },
+  { key: 'mark', Icon: CheckIcon },
+  { key: 'budget', Icon: CardIcon },
+  { key: 'documents', Icon: FolderIcon },
+  { key: 'translate', Icon: TranslateIcon },
 ] as const;
+
+// Going forward brings the next slide in from the side the language reads toward: from the right in
+// English (LTR), from the left in Hebrew (RTL). Going back is the mirror image.
+function makeVariants(dir: 'rtl' | 'ltr') {
+  const from = dir === 'rtl' ? -1 : 1;
+  return {
+    enter: (forward: boolean) => ({ opacity: 0, x: (forward ? from : -from) * 28 }),
+    center: { opacity: 1, x: 0 },
+    exit: (forward: boolean) => ({ opacity: 0, x: (forward ? -from : from) * 28 }),
+  };
+}
 
 export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, dir } = useLanguage();
   const [index, setIndex] = useState(0);
+  // Which way the last step went, so the slide leaves and arrives from the matching sides.
+  const [forward, setForward] = useState(true);
   const last = index === SLIDES.length - 1;
   const slide = SLIDES[index];
+  const variants = makeVariants(dir);
+
+  function go(to: number) {
+    setForward(to > index);
+    setIndex(to);
+  }
 
   function close() {
     onClose();
@@ -39,10 +60,10 @@ export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () =
           </div>
 
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="wait" initial={false} custom={forward}>
               <motion.div
                 key={slide.key}
-                initial={{ opacity: 0, x: dir === 'rtl' ? -28 : 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: dir === 'rtl' ? 28 : -28 }}
+                custom={forward} variants={variants} initial="enter" animate="center" exit="exit"
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 340 }}
               >
@@ -52,7 +73,6 @@ export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () =
                 }}>
                   <div style={{ display: 'flex', gap: 8, transform: 'scale(1.9)' }}>
                     <slide.Icon />
-                    {slide.Icon2 && <slide.Icon2 />}
                   </div>
                 </div>
                 <div style={{ font: "600 24px/1.3 'Noto Sans Hebrew',sans-serif", letterSpacing: '-.3px', marginTop: 30 }}>{t(`tour.${slide.key}.title`)}</div>
@@ -66,8 +86,13 @@ export function OnboardingTour({ open, onClose }: { open: boolean; onClose: () =
               <div key={s.key} style={{ width: i === index ? 22 : 7, height: 7, borderRadius: 999, background: i === index ? 'var(--accent)' : 'var(--border)', transition: 'width .2s, background .2s' }} />
             ))}
           </div>
-          <div className="btn btn-accent" style={{ textAlign: 'center', padding: 16 }} onClick={() => (last ? close() : setIndex(index + 1))}>
-            {last ? t('tour.done') : t('tour.next')}
+          <div style={{ display: 'flex', gap: 10 }}>
+            {index > 0 && (
+              <div className="btn btn-outline" style={{ flex: 1, textAlign: 'center', padding: 16 }} onClick={() => go(index - 1)}>{t('tour.back')}</div>
+            )}
+            <div className="btn btn-accent" style={{ flex: index > 0 ? 2 : 1, textAlign: 'center', padding: 16 }} onClick={() => (last ? close() : go(index + 1))}>
+              {last ? t('tour.done') : t('tour.next')}
+            </div>
           </div>
         </motion.div>
       )}
