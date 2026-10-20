@@ -16,16 +16,18 @@ export function Signup() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isAdult, setIsAdult] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     if (!name.trim() || !email.trim() || !password) { setError(t('signup.missingFields')); return; }
     if (password !== confirmPassword) { setError(t('signup.passwordMismatch')); return; }
+    if (!isAdult) { setError(t('signup.mustBeAdult')); return; }
     if (!agreedToTerms) { setError(t('signup.mustAgree')); return; }
     setError(''); setBusy(true);
     try {
-      await signup(name.trim(), email.trim(), password, lang);
+      await signup(name.trim(), email.trim(), password, lang, isAdult);
       navigate('/choose');
     } catch (e) {
       if (e instanceof ApiError) {
@@ -75,7 +77,18 @@ export function Signup() {
         <input className="field" style={{ direction: 'ltr', textAlign: 'left' }} type={showPw ? 'text' : 'password'} placeholder={t('signup.confirmPasswordPlaceholder')} value={confirmPassword}
           autoComplete="new-password" onChange={(e) => setConfirmPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
       </div>
-      <div style={{ marginTop: 18, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }} onClick={() => setAgreedToTerms((v) => !v)}>
+      <div style={{ marginTop: 18, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }} onClick={() => setIsAdult((v) => !v)}>
+        <div style={{
+          width: 19, height: 19, flex: 'none', marginTop: 1, borderRadius: 6,
+          border: `1.5px solid ${isAdult ? 'var(--accent)' : 'var(--border)'}`,
+          background: isAdult ? 'var(--accent)' : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700,
+        }}>
+          {isAdult ? '✓' : ''}
+        </div>
+        <div style={{ font: "400 12.5px/1.6 'Noto Sans Hebrew',sans-serif" }}>{t('signup.adultConfirm')}</div>
+      </div>
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }} onClick={() => setAgreedToTerms((v) => !v)}>
         <div style={{
           width: 19, height: 19, flex: 'none', marginTop: 1, borderRadius: 6,
           border: `1.5px solid ${agreedToTerms ? 'var(--accent)' : 'var(--border)'}`,

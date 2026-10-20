@@ -40,17 +40,15 @@ export interface LegalSection {
 // explanation in every section that touches it.
 export const PUBLICATION_BLOCKERS: Record<Lang, string[]> = {
   he: [
-    'הגבלת גיל / פרטיות קטינים: לא הוגדר גיל מינימלי לשימוש באפליקציה ואין מנגנון לאימות גיל. נדרשת החלטה ועדכון בתנאי השימוש ובמדיניות הפרטיות (סעיף 9).',
   ],
   en: [
-    "Age restriction / children's privacy: no minimum age for using the app has been set, and there's no age-verification mechanism. A decision and an update are needed in the Terms of Service and the Privacy Policy (Section 9).",
   ],
 };
 
-export const TERMS_VERSION = '1.3';
+export const TERMS_VERSION = '1.4';
 export const TERMS_UPDATED = '2026-10-20';
 
-export const PRIVACY_VERSION = '1.2';
+export const PRIVACY_VERSION = '1.3';
 export const PRIVACY_UPDATED = '2026-10-20';
 
 export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
@@ -72,6 +70,7 @@ export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
     {
       heading: '3. חשבונות משתמשים',
       body: [
+        'השירות מיועד למי שמלאו להם 18 שנים. בעצם ההרשמה אתם מצהירים שאתם בני 18 ומעלה. אם יתברר למפעיל שחשבון נוצר על ידי מי שטרם מלאו לו 18, המפעיל רשאי למחוק אותו.',
         'ההרשמה מתבצעת באמצעות כתובת אימייל וסיסמה. אתם אחראים לשמירה על סודיות פרטי ההתחברות שלכם ולכל פעילות המתבצעת דרך החשבון שלכם.',
         'עליכם למסור פרטים נכונים ועדכניים בעת ההרשמה. אסור ליצור חשבון עבור אדם אחר ללא הרשאתו, ואסור להתחזות לאדם או גוף אחר.',
         'הגישה לתכני הטיול (יעדים, אטרקציות, תקציב) מותנית בהצטרפות לטיול קיים באמצעות קוד הזמנה תקף, או ביצירת טיול חדש.',
@@ -154,6 +153,7 @@ export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
     {
       heading: '3. User accounts',
       body: [
+        'The Service is intended for people aged 18 or over. By signing up you declare that you are 18 or older. If the operator learns that an account was created by someone under 18, the operator may delete it.',
         'Signup is done using an email address and password. You are responsible for keeping your login details confidential and for all activity that takes place through your account.',
         'You must provide accurate and current details when signing up. You may not create an account on behalf of another person without their authorization, and you may not impersonate another person or entity.',
         'Access to trip content (destinations, attractions, budget) is conditional on joining an existing trip with a valid invite code, or creating a new trip.',
@@ -288,7 +288,8 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
     {
       heading: '9. פרטיות ילדים',
       body: [
-        '⟦REVIEW: ראו ״הגבלת גיל / פרטיות קטינים״ ברשימת הפריטים החוסמים פרסום, בראש העמוד⟧.',
+        'השירות אינו מיועד למי שטרם מלאו לו 18, ואיננו אוספים ביודעין מידע ממי שטרם מלאו לו 18. ההרשמה מותנית בהצהרה שאתם בני 18 ומעלה; ההצהרה ומועדה נשמרים בפרופיל.',
+        'אם נודע לנו שנאסף מידע ממי שטרם מלאו לו 18, נמחק אותו. ניתן לפנות אלינו בעניין זה בכתובת neevch19@gmail.com.',
       ],
     },
     {
@@ -372,7 +373,8 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
     {
       heading: "9. Children's privacy",
       body: [
-        '⟦REVIEW: see "Age restriction / children\'s privacy" in the publication-blockers list at the top of this page⟧.',
+        'The Service is not intended for anyone under 18, and we do not knowingly collect information from anyone under 18. Signing up requires a declaration that you are 18 or older; the declaration and its date are stored on the profile.',
+        'If we learn that information has been collected from someone under 18, we will delete it. You can contact us about this at neevch19@gmail.com.',
       ],
     },
     {

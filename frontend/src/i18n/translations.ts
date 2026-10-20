@@ -58,6 +58,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'signup.submit': 'צור חשבון והיכנס',
     'signup.missingFields': 'נא למלא את השדות החסרים',
     'signup.mustAgree': 'צריך לאשר את תנאי השימוש כדי להמשיך',
+    'signup.adultConfirm': 'אני בן/בת 18 ומעלה',
+    'signup.mustBeAdult': 'השירות מיועד למי שמלאו להם 18 שנים',
     'signup.genericError': 'שגיאה ביצירת חשבון',
     'signup.weakPassword': 'הסיסמה צריכה להיות לפחות 8 תווים',
 
@@ -455,6 +457,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'signup.submit': 'Create account and log in',
     'signup.missingFields': 'Please fill in the missing fields',
     'signup.mustAgree': 'You need to agree to the Terms of Service to continue',
+    'signup.adultConfirm': 'I am 18 years old or older',
+    'signup.mustBeAdult': 'The service is intended for people aged 18 or over',
     'signup.genericError': 'Error creating account',
     'signup.weakPassword': 'Password must be at least 8 characters',
 

@@ -40,7 +40,7 @@ export async function getUserName(uid: string): Promise<string | null> {
 
 // Called once right after a Firebase Auth signup — creates the matching profile doc
 // (keyed by the Firebase uid) if it doesn't exist yet.
-export async function ensureUser(uid: string, name?: string, email?: string, uiLang: "he" | "en" = "he") {
+export async function ensureUser(uid: string, name?: string, email?: string, uiLang: "he" | "en" = "he", ageConfirmed = false) {
   const ref = usersCol().doc(uid);
   const doc = await ref.get();
   if (doc.exists) return doc.data()!;
@@ -52,6 +52,8 @@ export async function ensureUser(uid: string, name?: string, email?: string, uiL
     darkMode: true,
     palette: "paper",
     uiLang,
+    // The signup declaration of being 18 or older, with when it was made (null if not given).
+    ageConfirmedAt: ageConfirmed ? new Date() : null,
     baseCurrency: "ILS",
     prefs: { ...DEFAULT_PREFS },
     notifPrefs: { ...DEFAULT_NOTIF_PREFS },

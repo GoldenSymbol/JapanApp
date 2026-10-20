@@ -14,8 +14,8 @@ export const authRouter = Router();
 // after this succeeds, once the UI has confirmed the checkbox was actually checked. Keeping the
 // two steps separate means a partially-failed signup never ends up with a false "accepted" record.
 authRouter.post("/bootstrap", requireAuth, async (req: AuthedRequest, res) => {
-  const { name, email, uiLang } = req.body || {};
-  const user = await ensureUser(req.userId!, name, email, uiLang === "en" ? "en" : "he");
+  const { name, email, uiLang, ageConfirmed } = req.body || {};
+  const user = await ensureUser(req.userId!, name, email, uiLang === "en" ? "en" : "he", ageConfirmed === true);
   const trip = await getMyTrip(req.userId!);
   res.json({ user: publicUser(req.userId!, user), trip: trip ? { id: trip.id, name: trip.name } : null, currentTermsVersion: TERMS_VERSION });
 });
