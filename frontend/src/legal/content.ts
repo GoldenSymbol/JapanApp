@@ -40,20 +40,18 @@ export interface LegalSection {
 // explanation in every section that touches it.
 export const PUBLICATION_BLOCKERS: Record<Lang, string[]> = {
   he: [
-    'תהליך מחיקת חשבון מלא: אין כיום דרך עצמאית למחוק חשבון ומידע (רק יציאה מטיול), ואין תהליך מוגדר — ולו ידני — למחיקה לפי בקשה. נדרשת החלטה ותיאור בתנאי השימוש (סעיף 8) ובמדיניות הפרטיות (סעיף 6).',
     'הגבלת גיל / פרטיות קטינים: לא הוגדר גיל מינימלי לשימוש באפליקציה ואין מנגנון לאימות גיל. נדרשת החלטה ועדכון בתנאי השימוש ובמדיניות הפרטיות (סעיף 9).',
   ],
   en: [
-    "Full account deletion process: there is currently no self-service way to delete an account and its data (only leaving a trip), and no defined process — even a manual one — for deletion on request. A decision and a description are needed in the Terms of Service (Section 8) and the Privacy Policy (Section 6).",
     "Age restriction / children's privacy: no minimum age for using the app has been set, and there's no age-verification mechanism. A decision and an update are needed in the Terms of Service and the Privacy Policy (Section 9).",
   ],
 };
 
-export const TERMS_VERSION = '1.2';
+export const TERMS_VERSION = '1.3';
 export const TERMS_UPDATED = '2026-10-20';
 
-export const PRIVACY_VERSION = '1.1';
-export const PRIVACY_UPDATED = '2026-09-18';
+export const PRIVACY_VERSION = '1.2';
+export const PRIVACY_UPDATED = '2026-10-20';
 
 export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
   he: [
@@ -113,7 +111,8 @@ export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
     {
       heading: '8. סגירת חשבון',
       body: [
-        'ניתן לצאת מטיול בכל עת דרך מסך ההגדרות באפליקציה. מחיקה מלאה של חשבון המשתמש עצמו (לא רק יציאה מטיול) אינה זמינה כרגע כפעולה עצמאית באפליקציה — ⟦REVIEW: ראו ״תהליך מחיקת חשבון מלא״ ברשימת הפריטים החוסמים פרסום, בראש העמוד⟧.',
+        'ניתן לצאת מטיול בכל עת דרך מסך ההגדרות באפליקציה.',
+        'ניתן למחוק את חשבון המשתמש לצמיתות בכל עת דרך מסך ההגדרות, לאחר אימות הסיסמה. המחיקה מסירה את הפרופיל, פרטי ההתחברות, התקציב האישי והסימונים האישיים שלכם. תוכן שהוספתם לטיול משותף נותר לשאר המשתתפים ללא שמכם; אם אתם בעלי הטיול, הבעלות עוברת למשתתף שהצטרף אחריכם, ואם אתם המשתתפים היחידים בו, הטיול והמסמכים שבו נמחקים.',
         'המפעיל רשאי להשעות או לסגור חשבון המפר תנאים אלה, ככל האפשר לאחר התראה סבירה בנסיבות העניין.',
       ],
     },
@@ -194,7 +193,8 @@ export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
     {
       heading: '8. Account closure',
       body: [
-        'You may leave a trip at any time from the Settings screen in the app. Full deletion of the user account itself (not just leaving a trip) is not currently available as a self-service action in the app — ⟦REVIEW: see "Full account deletion process" in the publication-blockers list at the top of this page⟧.',
+        'You may leave a trip at any time from the Settings screen in the app.',
+        'You may permanently delete your user account at any time from the Settings screen, after confirming your password. Deletion removes your profile, sign-in details, personal budget and personal markings. Content you added to a shared trip remains for the other participants without your name; if you own the trip, ownership passes to the participant who joined after you, and if you are its only participant, the trip and its documents are deleted.',
         'The operator may suspend or close an account that violates these Terms, where possible after reasonable notice under the circumstances.',
       ],
     },
@@ -269,8 +269,8 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
       heading: '6. שמירה ומחיקה',
       body: [
         'המידע נשמר כל עוד החשבון והטיול פעילים. יציאה מטיול (דרך ההגדרות) מוחקת את הסימונים האישיים שלכם באותו טיול (למשל אטרקציות שסימנתם כנצפו/תוכננו), אך אינה מוחקת תוכן שהוספתם וששאר המשתתפים כבר רואים (למשל יעדים או אטרקציות שיצרתם) — אלה נותרים חלק מהטיול המשותף.',
-        'מחיקה מלאה ועצמאית של חשבון משתמש (לרבות פרטי הפרופיל וההיסטוריה) אינה נתמכת כרגע כפעולה באפליקציה עצמה. ⟦REVIEW: ראו ״תהליך מחיקת חשבון מלא״ ברשימת הפריטים החוסמים פרסום, בראש העמוד⟧.',
-        'תיעוד אישור תנאי השימוש (גרסה ומועד) נשמר לצורך תיעוד ואינו נמחק עם יציאה מטיול, שכן הוא קשור לחשבון ולא לטיול ספציפי.',
+        'ניתן למחוק את החשבון לצמיתות בכל עת דרך מסך ההגדרות, לאחר אימות הסיסמה. המחיקה מסירה את פרטי הפרופיל (שם, אימייל, תמונה והעדפות), פרטי ההתחברות, התקציב האישי והסימונים האישיים. תוכן שהוספתם לטיול משותף נותר לשאר המשתתפים ללא קישור אליכם (למשל שם המשלם בהוצאה קבוצתית או שם מעלה המסמך נמחקים). אם אתם בעלי הטיול הבעלות עוברת למשתתף הבא, ואם אתם המשתתפים היחידים בו, הטיול והמסמכים שהועלו אליו נמחקים.',
+        'תיעוד אישור תנאי השימוש (גרסה ומועד) נשמר לצורך תיעוד, אינו נמחק עם יציאה מטיול, ונשמר גם לאחר מחיקת החשבון. הוא מכיל מזהה משתמש פנימי בלבד, ללא שם או אימייל.',
       ],
     },
     {
@@ -353,8 +353,8 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
       heading: '6. Retention and deletion',
       body: [
         'Information is retained for as long as the account and the trip are active. Leaving a trip (via Settings) deletes your own personal markings on that trip (e.g. attractions you marked as visited/planned), but does not delete content you added that other participants can already see (e.g. destinations or attractions you created) — those remain part of the shared trip.',
-        'Full, self-service deletion of a user account (including profile details and history) is not currently supported as an action within the app itself. ⟦REVIEW: see "Full account deletion process" in the publication-blockers list at the top of this page⟧.',
-        'A record of Terms-of-Service acceptance (version and date) is kept for record-keeping purposes and is not deleted when leaving a trip, since it is tied to the account rather than to a specific trip.',
+        'You can permanently delete your account at any time from the Settings screen, after confirming your password. Deletion removes your profile details (name, email, photo and preferences), sign-in details, personal budget and personal markings. Content you added to a shared trip remains for the other participants with no link to you (for example, the payer name on a shared expense and the uploader name on a document are removed). If you own the trip, ownership passes to the next participant, and if you are its only participant, the trip and the documents uploaded to it are deleted.',
+        'A record of Terms-of-Service acceptance (version and date) is kept for record-keeping purposes, is not deleted when leaving a trip, and is kept after the account is deleted. It contains only an internal user ID, with no name or email.',
       ],
     },
     {
