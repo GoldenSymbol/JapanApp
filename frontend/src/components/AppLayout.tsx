@@ -1,12 +1,33 @@
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { Toast } from './Toast';
 import { OfflineBanner } from './OfflineBanner';
+import { OnboardingTour } from './OnboardingTour';
+import { useAuth } from '../state/AuthContext';
+
+// Settings fires this to replay the first-use tour.
+export const OPEN_TOUR_EVENT = 'michiplan:open-tour';
 
 export function AppLayout() {
   const location = useLocation();
+  const { user, updateMe } = useAuth();
+  const [replay, setReplay] = useState(false);
+  // Hides the first-use tour right away on close, without waiting for the profile save to come back.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    const open = () => setReplay(true);
+    window.addEventListener(OPEN_TOUR_EVENT, open);
+    return () => window.removeEventListener(OPEN_TOUR_EVENT, open);
+  }, []);
+  const tourOpen = replay || (!!user && !user.tourSeen && !dismissed);
+  function closeTour() {
+    setReplay(false);
+    setDismissed(true);
+    if (user && !user.tourSeen) updateMe({ tourSeen: true }).catch(() => {});
+  }
   return (
     <div className="app-shell">
       <TopBar />
@@ -36,6 +57,7 @@ export function AppLayout() {
       }} />
       <BottomNav />
       <Toast />
+      <OnboardingTour open={tourOpen} onClose={closeTour} />
     </div>
   );
 }

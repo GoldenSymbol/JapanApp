@@ -53,6 +53,7 @@ authRouter.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
   for (const key of ["name", "avatarColor", "photoUrl", "darkMode", "palette", "uiLang", "baseCurrency"]) {
     if (key in body) patch[key] = body[key];
   }
+  if ("tourSeen" in body) patch.tourSeen = body.tourSeen === true;
   if (body.prefs) {
     for (const key of ["weather", "offlineSave", "autoSync"]) {
       if (key in body.prefs) patch[`prefs.${key}`] = !!body.prefs[key];

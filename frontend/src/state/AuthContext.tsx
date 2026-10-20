@@ -18,6 +18,7 @@ export interface User {
   baseCurrency: string;
   prefs: { weather: boolean; offlineSave: boolean; autoSync: boolean };
   notifPrefs: { newAttraction: boolean; newDestination: boolean; reschedule: boolean; newExpense: boolean };
+  tourSeen: boolean;
   termsAcceptedVersion: string | null;
   termsAcceptedAt: string | null;
 }

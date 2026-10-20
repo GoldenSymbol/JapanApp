@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api, ApiError } from '../api';
 import { authErrorText } from '../utils/authErrors';
 import { LoaderOverlay } from '../components/LoaderOverlay';
+import { OPEN_TOUR_EVENT } from '../components/AppLayout';
 import { useAuth } from '../state/AuthContext';
 import { useTheme } from '../state/ThemeContext';
 import { useLanguage } from '../state/LanguageContext';
@@ -217,6 +218,7 @@ export function Settings() {
 
       <div style={{ padding: '26px 22px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="btn" style={{ border: '1px solid rgba(217,86,75,.4)', color: 'var(--danger)', textAlign: 'center', padding: 15 }} onClick={() => setLeaveOpen(true)}>{t('settings.leaveTrip')}</div>
+        <div className="btn btn-outline" style={{ textAlign: 'center', padding: 15 }} onClick={() => window.dispatchEvent(new Event(OPEN_TOUR_EVENT))}>{t('settings.tour')}</div>
         <div className="btn btn-outline" style={{ textAlign: 'center', padding: 15 }} onClick={() => { logout(); navigate('/login'); }}>{t('settings.logout')}</div>
         <div onClick={() => setDeleteOpen(true)} style={{ font: "500 12.5px 'Noto Sans Hebrew',sans-serif", color: 'var(--danger)', textAlign: 'center', padding: '10px 0 2px', cursor: 'pointer', textDecoration: 'underline' }}>{t('settings.deleteAccount')}</div>
         <div style={{ font: "400 11px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim-2)', textAlign: 'center', paddingTop: 6 }}>{t('settings.version')}</div>

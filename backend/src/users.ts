@@ -23,6 +23,8 @@ export function publicUser(uid: string, d: any) {
     // Absent entirely for any user who hasn't accepted the current Terms of Service —
     // deliberately NOT defaulted to a version here, unlike the fields above, so an existing
     // user who predates this field is never mistaken for someone who already agreed.
+    // Whether the first-use tour has been shown (or skipped) — absent for users from before it existed.
+    tourSeen: d.tourSeen === true,
     termsAcceptedVersion: d.termsAcceptedVersion ?? null,
     termsAcceptedAt: d.termsAcceptedAt?.toDate?.().toISOString() ?? null,
   };

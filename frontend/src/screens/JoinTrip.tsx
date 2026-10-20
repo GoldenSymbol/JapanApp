@@ -51,6 +51,7 @@ export function JoinTrip() {
         <div className="section-label" style={{ paddingBottom: 9 }}>{t('join.codeLabel')}</div>
         <input className="field" style={{ font: "600 18px ui-monospace,Menlo,monospace", direction: 'ltr', textAlign: 'center', letterSpacing: 2 }}
           placeholder="JPN-4K2Q" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
+        <div style={{ font: "400 12px/1.55 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)', marginTop: 8 }}>{t('join.codeHint')}</div>
       </div>
       {preview && (
         <div style={{ marginTop: 16, border: '1px solid var(--border)', borderRadius: 16, padding: 16 }}>

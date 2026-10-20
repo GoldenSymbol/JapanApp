@@ -27,6 +27,8 @@ export function Choose() {
         {t('choose.subtitle')}
       </div>
 
+      <div style={{ font: "500 12.5px/1.6 'Noto Sans Hebrew',sans-serif", color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 12, padding: '10px 14px', marginTop: 18 }}>{t('choose.codeHint')}</div>
+
       <div onClick={handleCreate} className="card" style={{ marginTop: 26, cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
         <div className="jp-watermark" style={{ left: 14, top: 2, fontSize: 58 }}>新</div>
         <div style={{ position: 'relative' }}>
