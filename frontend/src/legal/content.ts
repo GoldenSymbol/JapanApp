@@ -49,8 +49,8 @@ export const PUBLICATION_BLOCKERS: Record<Lang, string[]> = {
   ],
 };
 
-export const TERMS_VERSION = '1.1';
-export const TERMS_UPDATED = '2026-09-18';
+export const TERMS_VERSION = '1.2';
+export const TERMS_UPDATED = '2026-10-20';
 
 export const PRIVACY_VERSION = '1.1';
 export const PRIVACY_UPDATED = '2026-09-18';
@@ -95,9 +95,12 @@ export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
       ],
     },
     {
-      heading: '6. קניין רוחני',
+      heading: '6. קניין רוחני ורישיון שימוש',
       body: [
         'עיצוב השירות, הלוגו, הקוד והממשק (למעט תוכן המשתמשים עצמו) הם קניינו של המפעיל או של מעניקי הרישיון שלו, ואין להעתיקם, להפיץ מחדש או ליצור מהם יצירות נגזרות ללא הסכמה מראש.',
+        'רישיון שימוש: בכפוף לתנאים אלה, המפעיל מעניק לכם רישיון אישי, מוגבל, לא בלעדי, שאינו ניתן להעברה או להענקת רישיון משנה, לשימוש בשירות לצורך תכנון הטיול שלכם בלבד. כל זכות שלא ניתנה במפורש בתנאים אלה שמורה למפעיל.',
+        'הגבלות: אין לפרק, לפענח, לבצע הנדסה לאחור או לנסות לחלץ את קוד המקור של השירות או של חלק ממנו, למעט ככל שהדין מתיר זאת במפורש על אף הוראה חוזית; ואין לשכפל את השירות, את ממשקיו או את מבנהו כולו או חלקו, לרבות כדי להפעיל שירות זהה או דומה או מתחרה, בין בתמורה ובין שלא בתמורה.',
+        'שם ולוגו: השם MichiPlan והלוגו של השירות שייכים למפעיל. אין להשתמש בהם, או בשם או בסימן הדומים להם עד כדי יצירת הטעיה, בלי הסכמה מראש ובכתב.',
       ],
     },
     {
@@ -173,9 +176,12 @@ export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
       ],
     },
     {
-      heading: '6. Intellectual property',
+      heading: '6. Intellectual property and license to use',
       body: [
         "The Service's design, logo, code and interface (excluding the user content itself) are the property of the operator or its licensors, and may not be copied, redistributed, or used to create derivative works without prior consent.",
+        "License: subject to these terms, the operator grants you a personal, limited, non-exclusive, non-transferable license, without the right to sublicense, to use the Service solely to plan your own trip. Any right not expressly granted in these terms is reserved by the operator.",
+        "Restrictions: you may not decompile, disassemble, reverse engineer, or attempt to extract the source code of the Service or any part of it, except to the extent applicable law expressly permits this despite a contractual restriction; and you may not replicate the Service, its interfaces or its structure, in whole or in part, including in order to operate an identical, similar or competing service, whether for payment or free of charge.",
+        "Name and logo: the name MichiPlan and the Service's logo belong to the operator. You may not use them, or any name or mark confusingly similar to them, without prior written consent.",
       ],
     },
     {
