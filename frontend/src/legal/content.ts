@@ -48,7 +48,7 @@ export const PUBLICATION_BLOCKERS: Record<Lang, string[]> = {
 export const TERMS_VERSION = '1.4';
 export const TERMS_UPDATED = '2026-10-20';
 
-export const PRIVACY_VERSION = '1.3';
+export const PRIVACY_VERSION = '1.4';
 export const PRIVACY_UPDATED = '2026-10-20';
 
 export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
@@ -235,7 +235,7 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
         'פרטי חשבון: שם, כתובת אימייל, וסיסמה (הסיסמה מנוהלת ומאוחסנת על ידי Firebase Authentication של גוגל — לשרת האפליקציה עצמו אין גישה לסיסמה בטקסט גלוי).',
         'העדפות פרופיל: צבע אווטאר, מצב תצוגה (בהיר/כהה) ופלטת צבעים, שפת ממשק מועדפת, מטבע בסיס, והעדפות אילו סוגי עדכונים בתוך האפליקציה יוצגו לכם (למשל ״אטרקציה חדשה״ או ״שינוי תאריך״) — עדכונים אלה מוצגים בתוך האפליקציה בלבד ואינם נשלחים כאימייל, הודעת דחיפה או מסרון.',
         'תוכן טיול שאתם מזינים: שמות ותאריכי יעדים, אטרקציות ותגיות שלהן, הערות טקסט חופשי, וקטגוריות/סכומי תקציב. שמות מקומות שאתם מזינים נשלחים לשירותי מיפוי חיצוניים כדי לאתר קואורדינטות ולהציג אותם על מפה (ראו סעיף 4).',
-        'נתוני חברות בטיול: מי הצטרף לאיזה טיול, מתי, ובאיזה תפקיד (יוצר הטיול / משתתף); וכתובות אימייל שהוזמנו לטיול ועדיין לא הצטרפו אליו.',
+        'נתוני חברות בטיול: מי הצטרף לאיזה טיול, מתי, ובאיזה תפקיד (יוצר הטיול / משתתף).',
         'האפליקציה אינה אוספת כרגע מידע ממכשירכם (מיקום, מצלמה, אנשי קשר וכדומה) ואינה כוללת מעקב פרסומי, כלי אנליטיקס או SDK של צד שלישי למטרות פרסום.',
       ],
     },
@@ -320,7 +320,7 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
         "Account details: name, email address, and password (the password is managed and stored by Google's Firebase Authentication — the app server itself has no access to the password in plain text).",
         'Profile preferences: avatar color, display mode (light/dark) and color palette, preferred interface language, base currency, and preferences for which kinds of in-app updates are shown to you (e.g. "new attraction" or "date change") — these updates are shown inside the app only and are not sent as email, push notification, or SMS.',
         "Trip content you enter: destination names and dates, attractions and their tags, free-text notes, and budget categories/amounts. Place names you enter are sent to external mapping services to locate coordinates and display them on a map (see Section 4).",
-        'Trip membership data: who joined which trip, when, and in what role (trip creator / participant); and email addresses that were invited to a trip and have not yet joined it.',
+        'Trip membership data: who joined which trip, when, and in what role (trip creator / participant).',
         "The app does not currently collect information from your device (location, camera, contacts, etc.) and does not include advertising tracking, analytics tools, or third-party SDKs for advertising purposes.",
       ],
     },
