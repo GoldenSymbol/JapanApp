@@ -94,6 +94,30 @@ function PickerDrawer({ open, onClose, title, children }: { open: boolean; onClo
     </Drawer>
   );
 }
+// Everyone on the trip, grouped by what they answered for this attraction.
+function ParticipantsList({ s, members }: { s: any; members: any[] }) {
+  const { t } = useLanguage();
+  const groups: { key: string; label: string; people: any[] }[] = [
+    { key: 'in', label: t('pending.statusIn'), people: members.filter((m) => (s.joinedBy || []).includes(m.id)) },
+    { key: 'out', label: t('pending.statusOut'), people: members.filter((m) => (s.declinedBy || []).includes(m.id)) },
+    { key: 'waiting', label: t('pending.statusWaiting'), people: members.filter((m) => !(s.joinedBy || []).includes(m.id) && !(s.declinedBy || []).includes(m.id)) },
+  ];
+  return (
+    <div style={{ minHeight: '30vh' }}>
+      {groups.filter((g) => g.people.length > 0).map((g) => (
+        <div key={g.key} style={{ marginBottom: 16 }}>
+          <div className="section-label" style={{ paddingBottom: 8 }}>{g.label} · {g.people.length}</div>
+          {g.people.map((m) => (
+            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderTop: '1px solid var(--border-soft)', opacity: g.key === 'in' ? 1 : 0.6 }}>
+              <Avatar name={m.name} color={m.avatarColor} photoUrl={m.photoUrl} size={32} fontSize={14} />
+              <div style={{ font: "500 14.5px 'Noto Sans Hebrew',sans-serif" }}>{m.name}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 function TagPicker({ value, onSelect }: { value: string; onSelect: (v: string) => void }) {
   const { t } = useLanguage();
   return (
@@ -406,6 +430,7 @@ function AttractionRow({ s, editing, members, onRespond, days, city, onDragEnd, 
   const dragControls = useDragControls();
   const { t, displayName } = useLanguage();
   const joined = (s.joinedBy || []).map((uid: string) => members.find((m: any) => m.id === uid)).filter(Boolean);
+  const [showWho, setShowWho] = useState(false);
   const [openPicker, setOpenPicker] = useState<'tag' | 'duration' | 'day' | 'note' | null>(null);
   return (
     <Reorder.Item
@@ -477,7 +502,7 @@ function AttractionRow({ s, editing, members, onRespond, days, city, onDragEnd, 
           {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={() => onRespond('out')}>{t('pending.leave')}</span>}
           {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onRemove}>{t('city.remove')}</span>}
           {joined.length > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', marginInlineStart: 2 }} aria-label={joined.map((m: any) => m.name).join(', ')}>
+            <span role="button" onClick={() => setShowWho(true)} style={{ display: 'inline-flex', alignItems: 'center', marginInlineStart: 2, cursor: 'pointer', padding: '4px 2px' }} aria-label={t('pending.whoTitle')}>
               {joined.map((m: any, i: number) => (
                 <span key={m.id} title={m.name} style={{ marginInlineStart: i === 0 ? 0 : -5, display: 'inline-flex', borderRadius: '50%', boxShadow: '0 0 0 1.5px var(--bg)' }}>
                   <Avatar name={m.name} color={m.avatarColor} photoUrl={m.photoUrl} size={18} fontSize={9.5} />
@@ -487,6 +512,9 @@ function AttractionRow({ s, editing, members, onRespond, days, city, onDragEnd, 
           )}
         </div>
       </div>
+      <PickerDrawer open={showWho} onClose={() => setShowWho(false)} title={t('pending.whoTitle')}>
+        <ParticipantsList s={s} members={members} />
+      </PickerDrawer>
       <PickerDrawer open={openPicker === 'tag'} onClose={() => setOpenPicker(null)} title={t('city.pickTag')}>
         <TagPicker value={s.tag} onSelect={(tag) => { onSetTag(tag); setOpenPicker(null); }} />
       </PickerDrawer>

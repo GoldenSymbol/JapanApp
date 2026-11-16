@@ -41,6 +41,7 @@ export interface Attraction {
   // Joining is per person: only attractions this user said "in" to are in their trip. null = not answered yet.
   myResponse?: 'in' | 'out' | null;
   joinedBy?: string[];
+  declinedBy?: string[];
 }
 
 // An attraction someone added that this user hasn't answered about yet.

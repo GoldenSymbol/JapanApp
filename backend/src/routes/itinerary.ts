@@ -212,6 +212,7 @@ async function attractionsForDestination(tripId: string, destId: string, userId:
       // null = not answered yet (the app asks), "out" = declined (can still be joined later).
       myResponse: (a.responses || {})[userId] ?? null,
       joinedBy: Object.entries(a.responses || {}).filter(([, v]) => v === "in").map(([uid]) => uid),
+      declinedBy: Object.entries(a.responses || {}).filter(([, v]) => v === "out").map(([uid]) => uid),
     };
   });
 }
