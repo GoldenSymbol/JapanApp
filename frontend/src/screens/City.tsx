@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, Reorder, useDragControls } from 'framer-motion';
+import { Avatar } from '../components/Avatar';
 import { api } from '../api';
 import { useTripData, cityCardBg } from '../state/TripDataContext';
 import { useTheme } from '../state/ThemeContext';
@@ -205,12 +206,14 @@ export function City() {
   const navigate = useNavigate();
   const {
     destinations, refresh: refreshTripData,
-    attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
+    attractionsByDestination, declinedByDestination, tripMeta, respondToAttraction, ensureAttractions, refreshAttractions, setAttractionsLocal,
   } = useTripData();
   const { dark, palette } = useTheme();
   const { t, displayName } = useLanguage();
   const city = destinations.find((d) => d.id === id);
   const spots = attractionsByDestination[id || ''] || [];
+  const declined = declinedByDestination[id || ''] || [];
+  const [showDeclined, setShowDeclined] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ nameHe: '', nameEn: '', tag: 'attraction', duration: 'hour', day: '', hour: '', note: '' });
   const [showForm, setShowForm] = useState(false);
@@ -355,6 +358,8 @@ export function City() {
                 key={s.id}
                 s={s}
                 editing={editing}
+                members={tripMeta?.members || []}
+                onRespond={(response: 'in' | 'out') => respondToAttraction({ id: s.id, destinationId: id! }, response)}
                 days={days}
                 city={city}
                 onDragEnd={() => saveOrder(spots)}
@@ -371,13 +376,28 @@ export function City() {
             ))}
           </AnimatePresence>
         </Reorder.Group>
+
+        {declined.length > 0 && (
+          <div style={{ paddingTop: 18 }}>
+            <div onClick={() => setShowDeclined((v) => !v)} className="section-label" style={{ cursor: 'pointer' }}>
+              {t('pending.declinedHeader', { count: declined.length })} {showDeclined ? '▴' : '▾'}
+            </div>
+            {showDeclined && declined.map((s) => (
+              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '12px 0', borderTop: '1px solid var(--border-soft)' }}>
+                <div style={{ font: "500 14px 'Noto Sans Hebrew',sans-serif", color: 'var(--text-dim)' }}>{displayName(s)}</div>
+                <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent' }}
+                  onClick={() => respondToAttraction({ id: s.id, destinationId: id! }, 'in')}>{t('pending.rejoin')}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag, onSetDuration, onSetNote }: {
-  s: any; editing: boolean; days: string[]; city: any; onDragEnd: () => void;
+function AttractionRow({ s, editing, members, onRespond, days, city, onDragEnd, onToggleMark, onRemove, onPlaceOnMap, onSetDay, onSetHour, onSetName, onSetTag, onSetDuration, onSetNote }: {
+  s: any; editing: boolean; members: any[]; onRespond: (response: 'in' | 'out') => void; days: string[]; city: any; onDragEnd: () => void;
   onToggleMark: () => void; onRemove: () => void; onPlaceOnMap: () => void;
   onSetDay: (d: string) => void; onSetHour: (h: string) => void;
   onSetName: (patch: { nameHe?: string; nameEn?: string }) => void; onSetTag: (tag: string) => void;
@@ -385,6 +405,7 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
 }) {
   const dragControls = useDragControls();
   const { t, displayName } = useLanguage();
+  const joined = (s.joinedBy || []).map((uid: string) => members.find((m: any) => m.id === uid)).filter(Boolean);
   const [openPicker, setOpenPicker] = useState<'tag' | 'duration' | 'day' | 'note' | null>(null);
   return (
     <Reorder.Item
@@ -453,7 +474,17 @@ function AttractionRow({ s, editing, days, city, onDragEnd, onToggleMark, onRemo
             </span>
           )}
           {editing && s.lat && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onPlaceOnMap}>{t('city.updateLocation')}</span>}
+          {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={() => onRespond('out')}>{t('pending.leave')}</span>}
           {editing && <span className="pill" style={{ cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent' }} onClick={onRemove}>{t('city.remove')}</span>}
+          {joined.length > 0 && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', marginInlineStart: 2 }} aria-label={joined.map((m: any) => m.name).join(', ')}>
+              {joined.map((m: any, i: number) => (
+                <span key={m.id} title={m.name} style={{ marginInlineStart: i === 0 ? 0 : -5, display: 'inline-flex', borderRadius: '50%', boxShadow: '0 0 0 1.5px var(--bg)' }}>
+                  <Avatar name={m.name} color={m.avatarColor} photoUrl={m.photoUrl} size={18} fontSize={9.5} />
+                </span>
+              ))}
+            </span>
+          )}
         </div>
       </div>
       <PickerDrawer open={openPicker === 'tag'} onClose={() => setOpenPicker(null)} title={t('city.pickTag')}>

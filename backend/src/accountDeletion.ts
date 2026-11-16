@@ -53,7 +53,11 @@ async function removeFromTrip(tripId: string, tripData: FirebaseFirestore.Docume
     tripRef.collection("notifications").get(),
   ]);
   attractions.docs.forEach((d) => {
-    if (d.data().marksByUser && uid in d.data().marksByUser) writer.update(d.ref, { [`marksByUser.${uid}`]: FieldValue.delete() });
+    const a = d.data();
+    const patch: Record<string, unknown> = {};
+    if (a.marksByUser && uid in a.marksByUser) patch[`marksByUser.${uid}`] = FieldValue.delete();
+    if (a.responses && uid in a.responses) patch[`responses.${uid}`] = FieldValue.delete();
+    if (Object.keys(patch).length) writer.update(d.ref, patch);
   });
   sharedTx.docs.forEach((d) => {
     if (d.data().userId === uid) writer.update(d.ref, { userId: null });

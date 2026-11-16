@@ -6,6 +6,7 @@ import { BottomNav } from './BottomNav';
 import { Toast } from './Toast';
 import { OfflineBanner } from './OfflineBanner';
 import { OnboardingTour } from './OnboardingTour';
+import { PendingAttractionsModal } from './PendingAttractionsModal';
 import { useAuth } from '../state/AuthContext';
 
 // Settings fires this to replay the first-use tour.
@@ -58,6 +59,8 @@ export function AppLayout() {
       <BottomNav />
       <Toast />
       <OnboardingTour open={tourOpen} onClose={closeTour} />
+      {/* After the tour, so a first-time user meets the tour first and the questions second. */}
+      {!tourOpen && <PendingAttractionsModal />}
     </div>
   );
 }

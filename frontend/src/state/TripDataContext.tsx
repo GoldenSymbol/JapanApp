@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, isServerUnreachable } from '../api';
 import { useAuth } from './AuthContext';
 import { loadTripSnapshot, saveTripSnapshot } from './offlineCache';
@@ -38,6 +38,16 @@ export interface Attraction {
   id: string; nameHe: string; nameEn: string; tag: string; duration: string | null;
   day: string | null; hour: string | null; note: string | null;
   lat: number | null; lng: number | null; myStatus: string; othersStatus: string[];
+  // Joining is per person: only attractions this user said "in" to are in their trip. null = not answered yet.
+  myResponse?: 'in' | 'out' | null;
+  joinedBy?: string[];
+}
+
+// An attraction someone added that this user hasn't answered about yet.
+export interface PendingAttraction {
+  id: string; destinationId: string; destNameHe: string; destNameEn: string;
+  nameHe: string; nameEn: string; tag: string; duration: string | null; day: string | null; hour: string | null;
+  addedByName: string | null;
 }
 
 interface TripDataState {
@@ -80,6 +90,10 @@ interface TripDataState {
   // drag-to-reorder, which needs to move items around optimistically while dragging without
   // waiting on a round trip.
   attractionsByDestination: Record<string, Attraction[]>;
+  // Attractions the user answered "not coming" to; they can still change their mind (City lists them).
+  declinedByDestination: Record<string, Attraction[]>;
+  pendingAttractions: PendingAttraction[];
+  respondToAttraction: (attraction: { id: string; destinationId: string }, response: 'in' | 'out') => Promise<void>;
   ensureAttractions: (destId: string) => Promise<void>;
   refreshAttractions: (destId: string) => Promise<void>;
   setAttractionsLocal: (destId: string, spots: Attraction[]) => void;
@@ -108,7 +122,25 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   const [budget, setBudget] = useState<BudgetSnapshot | null>(null);
   const [personalBudget, setPersonalBudget] = useState<BudgetSnapshot | null>(null);
   const [documentFolders, setDocumentFolders] = useState<DocumentFolder[]>([]);
-  const [attractionsByDestination, setAttractionsByDestination] = useState<Record<string, Attraction[]>>({});
+  // Everything fetched, whatever the user answered; the screens get the "in" ones (their trip) and the "out" ones.
+  const [rawAttractions, setAttractionsByDestination] = useState<Record<string, Attraction[]>>({});
+  const attractionsByDestination = useMemo(
+    () => Object.fromEntries(Object.entries(rawAttractions).map(([id, list]) => [id, list.filter((a) => a.myResponse === 'in')])),
+    [rawAttractions],
+  );
+  const declinedByDestination = useMemo(
+    () => Object.fromEntries(Object.entries(rawAttractions).map(([id, list]) => [id, list.filter((a) => a.myResponse === 'out')])),
+    [rawAttractions],
+  );
+  const [pendingAttractions, setPendingAttractions] = useState<PendingAttraction[]>([]);
+  const refreshPending = useCallback(async () => {
+    try {
+      const data = await api('/attractions/pending');
+      setPendingAttractions(data.attractions);
+    } catch (err) {
+      if (!isServerUnreachable(err)) throw err;
+    }
+  }, []);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const tripId = trip?.id;
@@ -165,18 +197,24 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     }
   }, [tripId]);
   const ensureAttractions = useCallback(async (destId: string) => {
-    if (attractionsByDestination[destId]) return;
+    if (rawAttractions[destId]) return;
     await refreshAttractions(destId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attractionsByDestination, refreshAttractions]);
+  }, [rawAttractions, refreshAttractions]);
+  // `spots` is the user's own list (City's drag-to-reorder works on it); the ones they aren't in are carried along.
   const setAttractionsLocal = useCallback((destId: string, spots: Attraction[]) => {
-    setAttractionsByDestination((m) => ({ ...m, [destId]: spots }));
+    setAttractionsByDestination((m) => ({ ...m, [destId]: [...spots, ...(m[destId] ?? []).filter((a) => a.myResponse !== 'in')] }));
+  }, []);
+  const respondToAttraction = useCallback(async (attraction: { id: string; destinationId: string }, response: 'in' | 'out') => {
+    const data = await api(`/attractions/${attraction.id}/respond`, { method: 'POST', json: { response } });
+    setPendingAttractions((list) => list.filter((a) => a.id !== attraction.id));
+    setAttractionsByDestination((m) => ({ ...m, [attraction.destinationId]: data.attractions }));
   }, []);
 
   const refresh = useCallback(async () => {
     if (!trip) {
       setDestinations([]); setTripMeta(null); setBudget(null); setPersonalBudget(null); setDocumentFolders([]);
-      setAttractionsByDestination({});
+      setAttractionsByDestination({}); setPendingAttractions([]);
       setOffline(false);
       setLoading(false);
       return;
@@ -192,6 +230,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
       setPersonalBudget(personalData);
       setDocumentFolders(foldersData.folders);
       setAttractionsByDestination({});
+      refreshPending();
       setOffline(false);
     } catch (err) {
       if (!isServerUnreachable(err)) throw err;
@@ -212,7 +251,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [trip]);
+  }, [trip, refreshPending]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -236,8 +275,8 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   const [dataVersion, setDataVersion] = useState(0);
   const holdUntil = useRef(0);
   const holdRefresh = useCallback((ms: number) => { holdUntil.current = Math.max(holdUntil.current, Date.now() + ms); }, []);
-  const attractionsRef = useRef(attractionsByDestination);
-  attractionsRef.current = attractionsByDestination;
+  const attractionsRef = useRef(rawAttractions);
+  attractionsRef.current = rawAttractions;
   const offlineRef = useRef(offline);
   offlineRef.current = offline;
 
@@ -252,9 +291,9 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
     setBudget(budgetData);
     setPersonalBudget(personalData);
     setDocumentFolders(foldersData.folders);
-    await Promise.all(Object.keys(attractionsRef.current).map((id) => refreshAttractions(id)));
+    await Promise.all([refreshPending(), ...Object.keys(attractionsRef.current).map((id) => refreshAttractions(id))]);
     setDataVersion((v) => v + 1);
-  }, [refreshAttractions]);
+  }, [refreshAttractions, refreshPending]);
 
   useEffect(() => {
     if (!tripId) return;
@@ -338,8 +377,8 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
   // changes one of these.
   useEffect(() => {
     if (!tripId || loading) return;
-    saveTripSnapshot({ tripId, destinations, tripMeta, budget, personalBudget, documentFolders, attractionsByDestination });
-  }, [tripId, loading, destinations, tripMeta, budget, personalBudget, documentFolders, attractionsByDestination]);
+    saveTripSnapshot({ tripId, destinations, tripMeta, budget, personalBudget, documentFolders, attractionsByDestination: rawAttractions });
+  }, [tripId, loading, destinations, tripMeta, budget, personalBudget, documentFolders, rawAttractions]);
 
   // The 'offline' event fires the moment the OS reports no connectivity — flip the banner on
   // right away rather than waiting for some future request to fail. 'online' is a hint, not a
@@ -363,7 +402,7 @@ export function TripDataProvider({ children }: { children: ReactNode }) {
       budget, refreshBudget, setBudgetSnapshot: setBudget,
       personalBudget, refreshPersonalBudget, setPersonalBudgetSnapshot: setPersonalBudget,
       documentFolders, refreshDocumentFolders,
-      attractionsByDestination, ensureAttractions, refreshAttractions, setAttractionsLocal,
+      attractionsByDestination, declinedByDestination, pendingAttractions, respondToAttraction, ensureAttractions, refreshAttractions, setAttractionsLocal,
       dataVersion, holdRefresh,
     }}>
       {children}

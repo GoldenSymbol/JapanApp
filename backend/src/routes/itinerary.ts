@@ -4,6 +4,7 @@ import { adminDb } from "../firebaseAdmin.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 import { getMyTrip, createNotification } from "../context.js";
 import { geocodePlace } from "../geocode.js";
+import { getUserName } from "../users.js";
 
 export const itineraryRouter = Router();
 
@@ -207,9 +208,50 @@ async function attractionsForDestination(tripId: string, destId: string, userId:
       lng: a.lng,
       myStatus: marksByUser[userId] || "none",
       othersStatus,
+      // Joining is per person: an attraction is in someone's trip only once they said "in".
+      // null = not answered yet (the app asks), "out" = declined (can still be joined later).
+      myResponse: (a.responses || {})[userId] ?? null,
+      joinedBy: Object.entries(a.responses || {}).filter(([, v]) => v === "in").map(([uid]) => uid),
     };
   });
 }
+
+// Attractions in the trip this user hasn't answered yet, across all destinations — what the app
+// asks about in its pop-up. Includes who added each one for context.
+itineraryRouter.get("/attractions/pending", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const [attrs, dests] = await Promise.all([fetchAttractions(trip.id), fetchDestinations(trip.id)]);
+  const destById = new Map(dests.map((d) => [d.id, d]));
+  const pending = attrs
+    .filter((a) => !((a.responses || {}) as Record<string, string>)[req.userId!] && destById.has(a.destinationId))
+    .sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+  const names = new Map<string, string | null>();
+  for (const uid of new Set(pending.map((a) => a.createdBy).filter(Boolean))) names.set(uid, await getUserName(uid));
+  res.json({
+    attractions: pending.map((a) => {
+      const d = destById.get(a.destinationId);
+      return {
+        id: a.id, destinationId: a.destinationId, destNameHe: d.nameHe, destNameEn: d.nameEn || "",
+        nameHe: a.nameHe, nameEn: a.nameEn || "", tag: a.tag, duration: a.duration, day: a.day, hour: a.hour,
+        addedByName: a.createdBy ? names.get(a.createdBy) ?? null : null,
+      };
+    }),
+  });
+});
+
+// "I'm in" / "I'm not coming" for one attraction. Can be changed any time.
+itineraryRouter.post("/attractions/:id/respond", requireAuth, async (req: AuthedRequest, res) => {
+  const trip = await requireTrip(req, res);
+  if (!trip) return;
+  const response = req.body?.response;
+  if (response !== "in" && response !== "out") return res.status(400).json({ error: "invalid_input" });
+  const attrRef = tripRef(trip.id).collection("attractions").doc(String(req.params.id));
+  const doc = await attrRef.get();
+  if (!doc.exists) return res.status(404).json({ error: "not_found" });
+  await attrRef.update({ [`responses.${req.userId}`]: response });
+  res.json({ attractions: await attractionsForDestination(trip.id, doc.data()!.destinationId, req.userId!) });
+});
 
 itineraryRouter.get("/destinations/:id/attractions", requireAuth, async (req: AuthedRequest, res) => {
   const trip = await requireTrip(req, res);
@@ -252,6 +294,8 @@ itineraryRouter.post("/destinations/:id/attractions", requireAuth, async (req: A
     note: note || null,
     createdBy: req.userId,
     createdAtMs: Date.now(),
+    // The person who adds it is going; everyone else is asked.
+    responses: { [req.userId!]: "in" },
   });
   await createNotification({
     tripId: trip.id,
@@ -276,9 +320,17 @@ itineraryRouter.post("/destinations/:id/attractions/reorder", requireAuth, async
   if (!orderedIds.length || orderedIds.some((id) => !validIds.has(id))) {
     return res.status(400).json({ error: "invalid_input" });
   }
+  // The client only sees (and so only sends) the attractions that are in its own trip. The others keep
+  // their place in the shared order: the sent ones are re-dealt into the positions they already held.
+  const inGroup = existingAttrs
+    .filter((a) => groupIds.includes(a.destinationId))
+    .sort((a, b) => a.orderIndex - b.orderIndex || (a.createdAtMs || 0) - (b.createdAtMs || 0));
+  const sent = new Set(orderedIds);
+  let next = 0;
+  const finalOrder = inGroup.map((a) => (sent.has(a.id) ? orderedIds[next++] : a.id));
   const batch = adminDb.batch();
   const attrCol = tripRef(trip.id).collection("attractions");
-  orderedIds.forEach((attrId, i) => batch.update(attrCol.doc(attrId), { orderIndex: i }));
+  finalOrder.forEach((attrId, i) => batch.update(attrCol.doc(attrId), { orderIndex: i }));
   await batch.commit();
   res.json({ attractions: await attractionsForDestination(trip.id, destId, req.userId!) });
 });
