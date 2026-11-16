@@ -48,8 +48,8 @@ export const PUBLICATION_BLOCKERS: Record<Lang, string[]> = {
 export const TERMS_VERSION = '1.4';
 export const TERMS_UPDATED = '2026-10-20';
 
-export const PRIVACY_VERSION = '1.4';
-export const PRIVACY_UPDATED = '2026-10-20';
+export const PRIVACY_VERSION = '1.5';
+export const PRIVACY_UPDATED = '2026-11-16';
 
 export const TERMS_SECTIONS: Record<Lang, LegalSection[]> = {
   he: [
@@ -236,6 +236,7 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
         'העדפות פרופיל: צבע אווטאר, מצב תצוגה (בהיר/כהה) ופלטת צבעים, שפת ממשק מועדפת, מטבע בסיס, והעדפות אילו סוגי עדכונים בתוך האפליקציה יוצגו לכם (למשל ״אטרקציה חדשה״ או ״שינוי תאריך״) — עדכונים אלה מוצגים בתוך האפליקציה בלבד ואינם נשלחים כאימייל, הודעת דחיפה או מסרון.',
         'תוכן טיול שאתם מזינים: שמות ותאריכי יעדים, אטרקציות ותגיות שלהן, הערות טקסט חופשי, וקטגוריות/סכומי תקציב. שמות מקומות שאתם מזינים נשלחים לשירותי מיפוי חיצוניים כדי לאתר קואורדינטות ולהציג אותם על מפה (ראו סעיף 4).',
         'נתוני חברות בטיול: מי הצטרף לאיזה טיול, מתי, ובאיזה תפקיד (יוצר הטיול / משתתף).',
+        'תשובות הצטרפות לאטרקציות: לכל אטרקציה בטיול נשמרת התשובה של כל משתתף, אם הוא מצטרף אליה, לא מעוניין או טרם ענה. התשובות נראות לשאר משתתפי אותו טיול, כדי שכולם יידעו מי מצטרף למה, ונקבעות לפי בחירתכם. אפשר לשנות אותן בכל שלב. בעת מחיקת החשבון התשובות שלכם נמחקות.',
         'האפליקציה אינה אוספת כרגע מידע ממכשירכם (מיקום, מצלמה, אנשי קשר וכדומה) ואינה כוללת מעקב פרסומי, כלי אנליטיקס או SDK של צד שלישי למטרות פרסום.',
       ],
     },
@@ -321,6 +322,7 @@ export const PRIVACY_SECTIONS: Record<Lang, LegalSection[]> = {
         'Profile preferences: avatar color, display mode (light/dark) and color palette, preferred interface language, base currency, and preferences for which kinds of in-app updates are shown to you (e.g. "new attraction" or "date change") — these updates are shown inside the app only and are not sent as email, push notification, or SMS.',
         "Trip content you enter: destination names and dates, attractions and their tags, free-text notes, and budget categories/amounts. Place names you enter are sent to external mapping services to locate coordinates and display them on a map (see Section 4).",
         'Trip membership data: who joined which trip, when, and in what role (trip creator / participant).',
+        'Attraction join responses: for each attraction on the trip, each participant\'s answer is stored — whether they are joining, not interested, or have not answered yet. These answers are visible to the other participants of the same trip, so that everyone knows who is joining what, and they are set by your choice. You can change them at any time. When you delete your account, your answers are deleted.',
         "The app does not currently collect information from your device (location, camera, contacts, etc.) and does not include advertising tracking, analytics tools, or third-party SDKs for advertising purposes.",
       ],
     },
